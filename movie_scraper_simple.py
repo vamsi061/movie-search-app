@@ -94,9 +94,15 @@ async def search_movies_simple(query: str, max_results: int = 20) -> List[Dict]:
                             year_match = re.search(r'\b(19|20)\d{2}\b', movie_title)
                             year = year_match.group() if year_match else 'N/A'
                             
+                            movie_page_url = urljoin(base_url, link_href)
+                            
+                            # Extract streaming URL from the movie page
+                            streaming_url = await extract_streaming_url(page, movie_page_url)
+                            
                             movie_data = {
                                 'title': movie_title,
-                                'url': urljoin(base_url, link_href),
+                                'url': streaming_url or movie_page_url,  # Use streaming URL if found, fallback to movie page
+                                'movie_page': movie_page_url,  # Keep original movie page URL
                                 'source': '5movierulz',
                                 'year': year,
                                 'poster': poster_url,
@@ -108,6 +114,8 @@ async def search_movies_simple(query: str, max_results: int = 20) -> List[Dict]:
                             if not any(existing['url'] == movie_data['url'] for existing in results):
                                 results.append(movie_data)
                                 print(f"✅ Added: {movie_title}")
+                                if streaming_url:
+                                    print(f"    🎬 Streaming URL: {streaming_url}")
                             
                     except Exception as e:
                         continue
@@ -127,3 +135,65 @@ async def search_movies_simple(query: str, max_results: int = 20) -> List[Dict]:
         await context.close()
         await browser.close()
         await playwright.stop()
+
+async def extract_streaming_url(browser_page, movie_page_url):
+    """Extract the actual streaming URL from a movie page"""
+    try:
+        print(f"🔍 Extracting streaming URL from: {movie_page_url}")
+        
+        # Create a new page for this movie
+        movie_page = await browser_page.context.new_page()
+        
+        try:
+            # Navigate to the movie page
+            await movie_page.goto(movie_page_url, wait_until='domcontentloaded', timeout=15000)
+            await asyncio.sleep(2)
+            
+            # Look for streaming links - common patterns
+            streaming_selectors = [
+                'a[href*="streamlare"]',
+                'a[href*="vcdnlare"]', 
+                'a[href*="stream"]',
+                'a[href*="watch"]',
+                'iframe[src*="stream"]',
+                'iframe[src*="vcdn"]',
+                '.watch-link a',
+                '.stream-link a',
+                '.player-link a'
+            ]
+            
+            for selector in streaming_selectors:
+                try:
+                    elements = await movie_page.query_selector_all(selector)
+                    for element in elements:
+                        href = await element.get_attribute('href') or await element.get_attribute('src')
+                        if href and ('streamlare' in href or 'vcdnlare' in href or 'stream' in href):
+                            print(f"    ✅ Found streaming URL: {href}")
+                            return href
+                except:
+                    continue
+            
+            # Look for any links that might be streaming URLs in the page content
+            all_links = await movie_page.query_selector_all('a')
+            for link in all_links:
+                try:
+                    href = await link.get_attribute('href')
+                    text = await link.inner_text()
+                    if href and text:
+                        text_lower = text.lower()
+                        if ('watch' in text_lower and 'online' in text_lower) or 'streamlare' in text_lower:
+                            if 'streamlare' in href or 'vcdnlare' in href or 'stream' in href:
+                                print(f"    ✅ Found streaming URL: {href}")
+                                return href
+                except:
+                    continue
+            
+            print(f"    ❌ No streaming URL found")
+            return None
+            
+        finally:
+            await movie_page.close()
+            
+    except Exception as e:
+        print(f"    ❌ Error extracting streaming URL: {str(e)}")
+        return None
