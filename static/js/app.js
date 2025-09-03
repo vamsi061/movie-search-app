@@ -143,7 +143,7 @@ class MovieSearchApp {
                     <i class="fas fa-play"></i> Watch Now
                 </div>
                 ${quality ? `<div class="movie-language">${quality}</div>` : ''}
-            </div>`;
+            </div>
             <div class="movie-info">
                 <h3 class="movie-title">${cleanTitle}</h3>
                 <div class="movie-meta">
