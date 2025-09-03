@@ -117,17 +117,22 @@ class MovieSearchApp {
         const card = document.createElement('div');
         card.className = 'movie-card';
         
+        // Ensure movie has required properties with defaults
+        const movieTitle = movie.title || 'Unknown Movie';
+        const movieUrl = movie.url || '#';
+        const movieYear = movie.year || 'N/A';
+        
         // Extract year from original title BEFORE cleaning
-        const year = this.extractYear(movie.title, movie.year);
+        const year = this.extractYear(movieTitle, movieYear);
         
         // Extract language from title or URL
-        const language = this.extractLanguage(movie.title, movie.url);
+        const language = this.extractLanguage(movieTitle, movieUrl);
         
         // Extract quality from title
-        const quality = this.extractQuality(movie.title);
+        const quality = this.extractQuality(movieTitle);
         
         // Clean title (this removes year, so we extract it first)
-        const cleanTitle = this.cleanMovieTitle(movie.title);
+        const cleanTitle = this.cleanMovieTitle(movieTitle);
         
         card.innerHTML = `
             <div class="movie-poster">
@@ -172,8 +177,9 @@ class MovieSearchApp {
             'bengali': 'BEN'
         };
         
-        const titleLower = title.toLowerCase();
-        const urlLower = url.toLowerCase();
+        // Safety checks
+        const titleLower = (title || '').toLowerCase();
+        const urlLower = (url || '').toLowerCase();
         
         for (const [lang, code] of Object.entries(languages)) {
             if (titleLower.includes(lang) || urlLower.includes(lang)) {
@@ -185,6 +191,11 @@ class MovieSearchApp {
     }
 
     extractQuality(title) {
+        // Safety check
+        if (!title || typeof title !== 'string') {
+            return null;
+        }
+        
         const qualities = ['HDRip', 'BRRip', 'DVDRip', 'HD', 'CAM', 'TS', '4K', '1080p', '720p'];
         const titleUpper = title.toUpperCase();
         
@@ -214,6 +225,11 @@ class MovieSearchApp {
         // If we already have a valid year, use it
         if (existingYear && existingYear !== 'N/A') {
             return existingYear;
+        }
+        
+        // Check if title is valid
+        if (!title || typeof title !== 'string') {
+            return null;
         }
         
         // Extract year from title - look for patterns like (2024) or just 2024
