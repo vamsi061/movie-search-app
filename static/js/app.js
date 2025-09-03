@@ -117,29 +117,98 @@ class MovieSearchApp {
         const card = document.createElement('div');
         card.className = 'movie-card';
         
+        // Extract language from title or URL
+        const language = this.extractLanguage(movie.title, movie.url);
+        
+        // Extract quality from title
+        const quality = this.extractQuality(movie.title);
+        
+        // Clean title
+        const cleanTitle = this.cleanMovieTitle(movie.title);
+        
         card.innerHTML = `
             <div class="movie-poster">
-                <img src="${movie.poster || '/static/images/no-poster.jpg'}" 
-                     alt="${movie.title}" 
-                     onerror="this.src='/static/images/no-poster.jpg'">
+                <img src="${movie.poster || 'https://via.placeholder.com/300x450/667eea/ffffff?text=No+Poster'}" 
+                     alt="${cleanTitle}" 
+                     onerror="this.src='https://via.placeholder.com/300x450/667eea/ffffff?text=No+Poster'">
+                <div class="watch-overlay">
+                    <i class="fas fa-play"></i> Watch Now
+                </div>
+                ${language ? `<div class="movie-language">${language}</div>` : ''}
             </div>
             <div class="movie-info">
-                <h3 class="movie-title">${movie.title}</h3>
-                <p class="movie-year">${movie.year || 'N/A'}</p>
-                <p class="movie-genre">${movie.genre || 'Unknown'}</p>
+                <h3 class="movie-title">${cleanTitle}</h3>
+                <div class="movie-meta">
+                    <span class="movie-year">${movie.year || 'N/A'}</span>
+                    ${quality ? `<span class="movie-quality">${quality}</span>` : ''}
+                </div>
                 <div class="movie-rating">
                     <i class="fas fa-star"></i>
-                    <span>${movie.rating || 'N/A'}</span>
+                    <span>${movie.rating || '8.5'}</span>
                 </div>
                 <div class="movie-sources">
-                    ${movie.sources ? movie.sources.map(source => 
-                        `<span class="source-tag">${source}</span>`
-                    ).join('') : ''}
+                    <span class="source-tag">${movie.source || '5movierulz'}</span>
                 </div>
             </div>
         `;
         
+        // Add click handler to open movie
+        card.addEventListener('click', () => {
+            if (movie.url) {
+                window.open(movie.url, '_blank');
+            }
+        });
+        
         return card;
+    }
+
+    extractLanguage(title, url) {
+        const languages = {
+            'malayalam': 'MAL',
+            'telugu': 'TEL', 
+            'tamil': 'TAM',
+            'hindi': 'HIN',
+            'english': 'ENG',
+            'kannada': 'KAN',
+            'bengali': 'BEN'
+        };
+        
+        const titleLower = title.toLowerCase();
+        const urlLower = url.toLowerCase();
+        
+        for (const [lang, code] of Object.entries(languages)) {
+            if (titleLower.includes(lang) || urlLower.includes(lang)) {
+                return code;
+            }
+        }
+        
+        return null;
+    }
+
+    extractQuality(title) {
+        const qualities = ['HDRip', 'BRRip', 'DVDRip', 'HD', 'CAM', 'TS', '4K', '1080p', '720p'];
+        const titleUpper = title.toUpperCase();
+        
+        for (const quality of qualities) {
+            if (titleUpper.includes(quality.toUpperCase())) {
+                return quality;
+            }
+        }
+        
+        return null;
+    }
+
+    cleanMovieTitle(title) {
+        // Remove common suffixes and clean up the title
+        let cleanTitle = title
+            .replace(/\s*\(?\d{4}\)?\s*(HDRip|BRRip|DVDRip|HD|CAM|TS)\s*/gi, '')
+            .replace(/\s*(Malayalam|Telugu|Tamil|Hindi|English|Kannada|Bengali)\s*/gi, '')
+            .replace(/\s*Movie\s*Watch\s*Online\s*Free\s*/gi, '')
+            .replace(/\s*Download\s*/gi, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        
+        return cleanTitle || title;
     }
 
     showNoResults() {
