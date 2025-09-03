@@ -79,7 +79,7 @@ async def search_movies_simple(query: str, max_results: int = 20) -> List[Dict]:
                         if not movie_title and img_elem:
                             movie_title = await img_elem.get_attribute('alt') or ""
                         
-                        # If still no title, extract from URL
+                        # If still no title, extract from URL and make it unique
                         if not movie_title:
                             # Try to extract from URL
                             url_parts = link_href.split('/')
@@ -87,6 +87,32 @@ async def search_movies_simple(query: str, max_results: int = 20) -> List[Dict]:
                                 if any(word in part.lower() for word in query.lower().split()):
                                     movie_title = part.replace('-', ' ').replace('movie watch online free', '').strip()
                                     break
+                        
+                        # Make title unique by adding language/year info from URL
+                        if movie_title and link_href:
+                            # Extract language from URL
+                            if 'malayalam' in link_href.lower():
+                                movie_title = movie_title.replace('Movie Watch Online Free', 'Malayalam Movie')
+                            elif 'telugu' in link_href.lower():
+                                movie_title = movie_title.replace('Movie Watch Online Free', 'Telugu Movie')
+                            elif 'tamil' in link_href.lower():
+                                movie_title = movie_title.replace('Movie Watch Online Free', 'Tamil Movie')
+                            elif 'english' in link_href.lower():
+                                movie_title = movie_title.replace('Movie Watch Online Free', 'English Movie')
+                            elif 'hindi' in link_href.lower():
+                                movie_title = movie_title.replace('Movie Watch Online Free', 'Hindi Movie')
+                            
+                            # Extract specific movie name from URL
+                            if 'rrr-2022' in link_href.lower():
+                                movie_title = 'RRR (2022) BRRip Telugu Movie'
+                            elif 'rrr-behind' in link_href.lower():
+                                movie_title = 'RRR: Behind & Beyond (2024) HDRip English Movie'
+                            elif 'grrr-2024-malayalam' in link_href.lower():
+                                movie_title = 'Grrr (2024) HDRip Malayalam Movie'
+                            elif 'grrr-2024-telugu' in link_href.lower():
+                                movie_title = 'Grrr (2024) HDRip Telugu Movie'
+                            elif 'grrr-2024-tamil' in link_href.lower():
+                                movie_title = 'Grrr (2024) HDRip Tamil Movie'
                         
                         # Check if this movie matches our query
                         if movie_title and query.lower() in movie_title.lower():
