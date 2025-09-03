@@ -19,22 +19,54 @@ async def home(request: Request):
 
 @app.get("/api/search")
 async def search_movies(query: str = ""):
-    """API endpoint for movie search"""
+    """API endpoint for movie search - combines Playwright and n8n results"""
     if not query.strip():
         return {"query": query, "results": [], "message": "Please enter a search term"}
     
     try:
-        # Import the simplified scraper
+        # Import both scrapers
         from movie_scraper_simple import search_movies_simple
+        from integrate_n8n_backend import fetch_from_n8n, combine_results
+        import asyncio
         
-        # Search for movies using the working simple scraper
-        results = await search_movies_simple(query, max_results=20)
+        print(f"🔍 Searching for: {query}")
+        
+        # Run both scrapers concurrently for faster results
+        playwright_task = search_movies_simple(query, max_results=15)
+        n8n_task = fetch_from_n8n(query, max_results=15)
+        
+        # Wait for both to complete
+        playwright_results, n8n_results = await asyncio.gather(
+            playwright_task, 
+            n8n_task,
+            return_exceptions=True
+        )
+        
+        # Handle exceptions
+        if isinstance(playwright_results, Exception):
+            print(f"Playwright error: {playwright_results}")
+            playwright_results = []
+        
+        if isinstance(n8n_results, Exception):
+            print(f"n8n error: {n8n_results}")
+            n8n_results = []
+        
+        # Combine results from both sources
+        combined_results = await combine_results(playwright_results, n8n_results)
+        
+        # Limit final results
+        final_results = combined_results[:20]
         
         return {
             "query": query,
-            "results": results,
-            "total": len(results),
-            "message": f"Found {len(results)} movies" if results else "No movies found"
+            "results": final_results,
+            "total": len(final_results),
+            "sources": {
+                "playwright": len(playwright_results),
+                "n8n": len(n8n_results),
+                "combined": len(final_results)
+            },
+            "message": f"Found {len(final_results)} movies from multiple sources" if final_results else "No movies found"
         }
         
     except Exception as e:

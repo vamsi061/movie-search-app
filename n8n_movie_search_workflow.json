@@ -1,0 +1,251 @@
+{
+  "name": "Movie Search Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "search-movies",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f7b1c0e1-8c5a-4d2b-9e3f-1a2b3c4d5e6f",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "movie-search-webhook"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "query",
+              "value": "={{ $node.Webhook.json.query || 'rrr' }}"
+            },
+            {
+              "name": "max_results",
+              "value": "={{ $node.Webhook.json.max_results || 20 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-5e6f-7g8h-9i0j-k1l2m3n4o5p6",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.5movierulz.irish/search_movies",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "s",
+              "value": "={{ $node['Extract Parameters'].json.query }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "id": "b2c3d4e5-6f7g-8h9i-0j1k-l2m3n4o5p6q7",
+      "name": "Fetch Movie Search Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse HTML and extract movie information\nconst cheerio = require('cheerio');\nconst html = $input.first().json.data;\nconst $ = cheerio.load(html);\nconst query = $node['Extract Parameters'].json.query.toLowerCase();\nconst results = [];\n\n// Find all film elements\n$('div[class*=\"film\"]').each((index, element) => {\n  const $element = $(element);\n  const fullText = $element.text().toLowerCase();\n  \n  // Check if contains query\n  if (!fullText.includes(query)) {\n    return;\n  }\n  \n  // Process each link in this element\n  $element.find('a').each((linkIndex, linkElement) => {\n    const $link = $(linkElement);\n    const href = $link.attr('href');\n    \n    if (!href) return;\n    \n    // Find corresponding image\n    const $img = $element.find('img').eq(linkIndex);\n    const posterSrc = $img.attr('src') || '';\n    \n    // Extract movie title from text content\n    const textLines = fullText.split('\\n').map(line => line.trim()).filter(line => line);\n    let movieTitle = '';\n    \n    // Look for lines with year and movie info\n    for (const line of textLines) {\n      if (line.includes(query) && \n          (/\\b(19|20)\\d{2}\\b/.test(line) || \n           /hdrip|brrip|movie|watch/.test(line))) {\n        movieTitle = line;\n        break;\n      }\n    }\n    \n    // Fallback to image alt text\n    if (!movieTitle) {\n      movieTitle = $img.attr('alt') || '';\n    }\n    \n    // Extract year\n    const yearMatch = movieTitle.match(/\\b(19|20)\\d{2}\\b/);\n    const year = yearMatch ? yearMatch[0] : 'N/A';\n    \n    // Extract language\n    const languages = {\n      'malayalam': 'MAL',\n      'telugu': 'TEL',\n      'tamil': 'TAM',\n      'hindi': 'HIN',\n      'english': 'ENG',\n      'kannada': 'KAN',\n      'bengali': 'BEN'\n    };\n    \n    let language = null;\n    for (const [lang, code] of Object.entries(languages)) {\n      if (movieTitle.toLowerCase().includes(lang) || href.toLowerCase().includes(lang)) {\n        language = code;\n        break;\n      }\n    }\n    \n    // Extract quality\n    const qualities = ['HDRip', 'BRRip', 'DVDRip', 'HD', 'CAM', 'TS', '4K', '1080p', '720p'];\n    let quality = null;\n    for (const qual of qualities) {\n      if (movieTitle.toUpperCase().includes(qual.toUpperCase())) {\n        quality = qual;\n        break;\n      }\n    }\n    \n    if (movieTitle && query.includes(movieTitle.toLowerCase())) {\n      const movieUrl = href.startsWith('http') ? href : `https://www.5movierulz.irish${href}`;\n      const posterUrl = posterSrc.startsWith('http') ? posterSrc : `https://www.5movierulz.irish${posterSrc}`;\n      \n      const movieData = {\n        title: movieTitle.trim(),\n        url: movieUrl,\n        source: 'n8n-5movierulz',\n        year: year,\n        poster: posterUrl,\n        language: language,\n        quality: quality,\n        genre: 'Unknown',\n        rating: 'N/A'\n      };\n      \n      // Check for duplicates\n      if (!results.find(r => r.url === movieData.url)) {\n        results.push(movieData);\n      }\n    }\n  });\n});\n\n// Limit results\nconst maxResults = parseInt($node['Extract Parameters'].json.max_results) || 20;\nconst limitedResults = results.slice(0, maxResults);\n\nreturn limitedResults.map(movie => ({ json: movie }));"
+      },
+      "id": "c3d4e5f6-7g8h-9i0j-1k2l-m3n4o5p6q7r8",
+      "name": "Parse Movies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "d4e5f6g7-8h9i-0j1k-2l3m-n4o5p6q7r8s9",
+      "name": "Fetch Movie Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract streaming URL from movie page\nconst cheerio = require('cheerio');\nconst html = $input.first().json.data;\nconst $ = cheerio.load(html);\n\nlet streamingUrl = null;\n\n// Look for streaming links\nconst streamingSelectors = [\n  'a[href*=\"streamlare\"]',\n  'a[href*=\"vcdnlare\"]',\n  'a[href*=\"stream\"]',\n  'iframe[src*=\"stream\"]',\n  'iframe[src*=\"vcdn\"]'\n];\n\nfor (const selector of streamingSelectors) {\n  $(selector).each((index, element) => {\n    const href = $(element).attr('href') || $(element).attr('src');\n    if (href && (href.includes('streamlare') || href.includes('vcdnlare') || href.includes('stream'))) {\n      streamingUrl = href;\n      return false; // Break out of loop\n    }\n  });\n  if (streamingUrl) break;\n}\n\n// Look for any links with streaming-related text\nif (!streamingUrl) {\n  $('a').each((index, element) => {\n    const $link = $(element);\n    const href = $link.attr('href');\n    const text = $link.text().toLowerCase();\n    \n    if (href && text && \n        ((text.includes('watch') && text.includes('online')) || text.includes('streamlare'))) {\n      if (href.includes('streamlare') || href.includes('vcdnlare') || href.includes('stream')) {\n        streamingUrl = href;\n        return false;\n      }\n    }\n  });\n}\n\n// Return the movie data with streaming URL\nconst movieData = $input.first().json;\nreturn [{\n  json: {\n    ...movieData,\n    streaming_url: streamingUrl,\n    url: streamingUrl || movieData.url // Use streaming URL if found\n  }\n}];"
+      },
+      "id": "e5f6g7h8-9i0j-1k2l-3m4n-o5p6q7r8s9t0",
+      "name": "Extract Streaming URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "query",
+              "value": "={{ $node['Extract Parameters'].json.query }}"
+            },
+            {
+              "name": "total",
+              "value": "={{ $runIndex }}"
+            },
+            {
+              "name": "source",
+              "value": "n8n-workflow"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f6g7h8i9-0j1k-2l3m-4n5o-p6q7r8s9t0u1",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"query\": \"{{ $node['Extract Parameters'].json.query }}\",\n  \"results\": {{ $json }},\n  \"total\": {{ $('Extract Streaming URL').length }},\n  \"message\": \"Found {{ $('Extract Streaming URL').length }} movies via n8n\",\n  \"source\": \"n8n-workflow\"\n}",
+        "options": {}
+      },
+      "id": "g7h8i9j0-1k2l-3m4n-5o6p-q7r8s9t0u1v2",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        300
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "Fetch Movie Search Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Movie Search Page": {
+      "main": [
+        [
+          {
+            "node": "Parse Movies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Movies": {
+      "main": [
+        [
+          {
+            "node": "Fetch Movie Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Movie Page": {
+      "main": [
+        [
+          {
+            "node": "Extract Streaming URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Streaming URL": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "movie-search-workflow",
+  "tags": []
+}
