@@ -117,10 +117,10 @@ class MovieSearchApp {
         const card = document.createElement('div');
         card.className = 'movie-card';
         
-        // Ensure movie has required properties with defaults
-        const movieTitle = movie.title || 'Unknown Movie';
-        const movieUrl = movie.url || '#';
-        const movieYear = movie.year || 'N/A';
+        // Ensure movie has required properties with defaults and clean them
+        const movieTitle = (movie.title || 'Unknown Movie').toString().trim();
+        const movieUrl = (movie.url || '#').toString().replace(/\s+/g, '').trim();
+        const movieYear = (movie.year || 'N/A').toString().trim();
         
         // Extract year from original title BEFORE cleaning
         const year = this.extractYear(movieTitle, movieYear);
@@ -158,8 +158,8 @@ class MovieSearchApp {
         
         // Add click handler to open movie
         card.addEventListener('click', () => {
-            if (movie.url) {
-                window.open(movie.url, '_blank');
+            if (movieUrl && movieUrl !== '#') {
+                window.open(movieUrl, '_blank');
             }
         });
         
@@ -238,16 +238,21 @@ class MovieSearchApp {
             /\b(19|20)\d{2}\b/  // Matches any 4-digit year starting with 19 or 20
         ];
         
-        for (const pattern of yearPatterns) {
-            const yearMatch = title.match(pattern);
-            if (yearMatch) {
-                const year = yearMatch[1] || yearMatch[0]; // Use captured group if available
-                const yearNum = parseInt(year);
-                // Validate year is reasonable (between 1900 and current year + 5)
-                if (yearNum >= 1900 && yearNum <= new Date().getFullYear() + 5) {
-                    return year;
+        try {
+            for (const pattern of yearPatterns) {
+                const yearMatch = title.match(pattern);
+                if (yearMatch) {
+                    const year = yearMatch[1] || yearMatch[0]; // Use captured group if available
+                    const yearNum = parseInt(year);
+                    // Validate year is reasonable (between 1900 and current year + 5)
+                    if (yearNum >= 1900 && yearNum <= new Date().getFullYear() + 5) {
+                        return year;
+                    }
                 }
             }
+        } catch (error) {
+            console.warn('Error extracting year from title:', title, error);
+            return null;
         }
         
         return null;
