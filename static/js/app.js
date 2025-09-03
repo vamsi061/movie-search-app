@@ -126,25 +126,24 @@ class MovieSearchApp {
         // Clean title
         const cleanTitle = this.cleanMovieTitle(movie.title);
         
+        // Extract year from title if not available
+        const year = this.extractYear(movie.title, movie.year);
+        
         card.innerHTML = `
             <div class="movie-poster">
-                <img src="${movie.poster || 'https://via.placeholder.com/300x450/667eea/ffffff?text=No+Poster'}" 
+                <img src="${movie.poster || 'https://via.placeholder.com/300x400/667eea/ffffff?text=No+Poster'}" 
                      alt="${cleanTitle}" 
-                     onerror="this.src='https://via.placeholder.com/300x450/667eea/ffffff?text=No+Poster'">
+                     onerror="this.src='https://via.placeholder.com/300x400/667eea/ffffff?text=No+Poster'">
                 <div class="watch-overlay">
                     <i class="fas fa-play"></i> Watch Now
                 </div>
-                ${language ? `<div class="movie-language">${language}</div>` : ''}
+                ${quality ? `<div class="movie-language">${quality}</div>` : ''}
             </div>
             <div class="movie-info">
                 <h3 class="movie-title">${cleanTitle}</h3>
                 <div class="movie-meta">
-                    <span class="movie-year">${movie.year || 'N/A'}</span>
-                    ${quality ? `<span class="movie-quality">${quality}</span>` : ''}
-                </div>
-                <div class="movie-rating">
-                    <i class="fas fa-star"></i>
-                    <span>${movie.rating || '8.5'}</span>
+                    ${language ? `<span class="movie-year">${language}</span>` : ''}
+                    ${year && year !== 'N/A' ? `<span class="movie-year">${year}</span>` : ''}
                 </div>
                 <div class="movie-sources">
                     <span class="source-tag">${movie.source || '5movierulz'}</span>
@@ -209,6 +208,17 @@ class MovieSearchApp {
             .trim();
         
         return cleanTitle || title;
+    }
+
+    extractYear(title, existingYear) {
+        // If we already have a valid year, use it
+        if (existingYear && existingYear !== 'N/A') {
+            return existingYear;
+        }
+        
+        // Extract year from title
+        const yearMatch = title.match(/\b(19|20)\d{2}\b/);
+        return yearMatch ? yearMatch[0] : null;
     }
 
     showNoResults() {
