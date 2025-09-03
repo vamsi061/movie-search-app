@@ -117,17 +117,17 @@ class MovieSearchApp {
         const card = document.createElement('div');
         card.className = 'movie-card';
         
+        // Extract year from original title BEFORE cleaning
+        const year = this.extractYear(movie.title, movie.year);
+        
         // Extract language from title or URL
         const language = this.extractLanguage(movie.title, movie.url);
         
         // Extract quality from title
         const quality = this.extractQuality(movie.title);
         
-        // Clean title
+        // Clean title (this removes year, so we extract it first)
         const cleanTitle = this.cleanMovieTitle(movie.title);
-        
-        // Extract year from title if not available
-        const year = this.extractYear(movie.title, movie.year);
         
         card.innerHTML = `
             <div class="movie-poster">
@@ -216,9 +216,25 @@ class MovieSearchApp {
             return existingYear;
         }
         
-        // Extract year from title
-        const yearMatch = title.match(/\b(19|20)\d{2}\b/);
-        return yearMatch ? yearMatch[0] : null;
+        // Extract year from title - look for patterns like (2024) or just 2024
+        const yearPatterns = [
+            /\((\d{4})\)/,  // Matches (2024)
+            /\b(19|20)\d{2}\b/  // Matches any 4-digit year starting with 19 or 20
+        ];
+        
+        for (const pattern of yearPatterns) {
+            const yearMatch = title.match(pattern);
+            if (yearMatch) {
+                const year = yearMatch[1] || yearMatch[0]; // Use captured group if available
+                const yearNum = parseInt(year);
+                // Validate year is reasonable (between 1900 and current year + 5)
+                if (yearNum >= 1900 && yearNum <= new Date().getFullYear() + 5) {
+                    return year;
+                }
+            }
+        }
+        
+        return null;
     }
 
     showNoResults() {

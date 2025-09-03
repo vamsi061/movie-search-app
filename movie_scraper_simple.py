@@ -42,6 +42,10 @@ async def search_movies_simple(query: str, max_results: int = 20) -> List[Dict]:
                 all_links = await element.query_selector_all('a')
                 all_images = await element.query_selector_all('img')
                 
+                # Get all text content from this element to find full titles
+                element_text = await element.inner_text()
+                text_lines = [line.strip() for line in element_text.split('\n') if line.strip()]
+                
                 # Process each link-image pair
                 for link_idx, link in enumerate(all_links):
                     try:
@@ -55,12 +59,27 @@ async def search_movies_simple(query: str, max_results: int = 20) -> List[Dict]:
                         poster_url = ""
                         
                         if img_elem:
-                            movie_title = await img_elem.get_attribute('alt') or ""
                             poster_src = await img_elem.get_attribute('src') or ""
                             if poster_src and not poster_src.startswith('data:'):
                                 poster_url = urljoin(base_url, poster_src)
                         
-                        # If no title from image, extract from URL or text
+                        # Try to find the full title from the text content
+                        # Look for lines that contain both the query and year information
+                        for line in text_lines:
+                            line_lower = line.lower()
+                            # Check if this line contains our query and looks like a movie title
+                            if (query.lower() in line_lower and 
+                                (re.search(r'\b(19|20)\d{2}\b', line) or 
+                                 any(keyword in line_lower for keyword in ['hdrip', 'brrip', 'movie', 'watch']))):
+                                movie_title = line
+                                print(f"    Found full title: {movie_title}")
+                                break
+                        
+                        # Fallback: use image alt text if no better title found
+                        if not movie_title and img_elem:
+                            movie_title = await img_elem.get_attribute('alt') or ""
+                        
+                        # If still no title, extract from URL
                         if not movie_title:
                             # Try to extract from URL
                             url_parts = link_href.split('/')
