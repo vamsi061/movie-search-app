@@ -48,17 +48,34 @@ async def combine_results(playwright_results: List[Dict], n8n_results: List[Dict
     
     # Add Playwright results first
     for movie in playwright_results:
-        if movie['url'] not in seen_urls:
-            movie['data_source'] = 'playwright'
-            combined.append(movie)
-            seen_urls.add(movie['url'])
+        if isinstance(movie, dict) and 'url' in movie:
+            if movie['url'] not in seen_urls:
+                movie['data_source'] = 'playwright'
+                combined.append(movie)
+                seen_urls.add(movie['url'])
     
-    # Add n8n results (avoiding duplicates)
+    # Add n8n results (avoiding duplicates) with better error handling
     for movie in n8n_results:
-        if movie['url'] not in seen_urls:
-            movie['data_source'] = 'n8n'
-            combined.append(movie)
-            seen_urls.add(movie['url'])
+        try:
+            if isinstance(movie, dict):
+                # Handle different n8n response formats
+                if 'url' in movie:
+                    movie_url = movie['url']
+                elif 'json' in movie and isinstance(movie['json'], dict) and 'url' in movie['json']:
+                    # n8n sometimes wraps results in 'json' property
+                    movie = movie['json']
+                    movie_url = movie['url']
+                else:
+                    print(f"⚠️ Skipping n8n movie - no URL found: {movie}")
+                    continue
+                
+                if movie_url not in seen_urls:
+                    movie['data_source'] = 'n8n'
+                    combined.append(movie)
+                    seen_urls.add(movie_url)
+        except Exception as e:
+            print(f"❌ Error processing n8n movie: {str(e)} - {movie}")
+            continue
     
     print(f"🔄 Combined results: {len(playwright_results)} from Playwright + {len(n8n_results)} from n8n = {len(combined)} total")
     
