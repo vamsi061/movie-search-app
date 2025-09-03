@@ -136,14 +136,14 @@ class MovieSearchApp {
         
         card.innerHTML = `
             <div class="movie-poster">
-                <img src="${movie.poster || 'https://via.placeholder.com/300x400/667eea/ffffff?text=No+Poster'}" 
+                <img src="${movie.poster || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjNjY3ZWVhIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIFBvc3RlcjwvdGV4dD48L3N2Zz4='}" 
                      alt="${cleanTitle}" 
-                     onerror="this.src='https://via.placeholder.com/300x400/667eea/ffffff?text=No+Poster'">
+                     onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjNjY3ZWVhIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIFBvc3RlcjwvdGV4dD48L3N2Zz4=';">
                 <div class="watch-overlay">
                     <i class="fas fa-play"></i> Watch Now
                 </div>
                 ${quality ? `<div class="movie-language">${quality}</div>` : ''}
-            </div>
+            </div>`;
             <div class="movie-info">
                 <h3 class="movie-title">${cleanTitle}</h3>
                 <div class="movie-meta">
