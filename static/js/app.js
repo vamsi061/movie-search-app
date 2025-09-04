@@ -68,11 +68,17 @@ class MovieSearchApp {
             const response = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
             const data = await response.json();
             
+            console.log('🔍 Frontend received data:', data);
+            console.log('🔍 Results array:', data.results);
+            console.log('🔍 Results length:', data.results ? data.results.length : 'undefined');
+            
             this.hideLoading();
             
             if (data.results && data.results.length > 0) {
+                console.log('✅ Displaying results:', data.results.length);
                 this.displayResults(data.results, query);
             } else {
+                console.log('❌ No results to display');
                 this.showNoResults();
             }
         } catch (error) {
@@ -119,7 +125,7 @@ class MovieSearchApp {
         
         // Ensure movie has required properties with defaults and clean them
         const movieTitle = (movie.title || 'Unknown Movie').toString().trim();
-        const movieUrl = (movie.url || '#').toString().replace(/\s+/g, '').trim();
+        const movieUrl = (movie.url || '#').toString().replace(/\s+/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
         const movieYear = (movie.year || 'N/A').toString().trim();
         
         // Extract year from original title BEFORE cleaning

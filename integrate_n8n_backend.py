@@ -103,14 +103,32 @@ async def fetch_from_n8n(query: str, max_results: int = 20) -> List[Dict]:
                             print(f"❌ Data structure: {data}")
                             return []
                         
-                        # Fix poster URLs if they're using blocked via.placeholder.com
+                        # Fix poster URLs and clean streaming URLs
                         for i, movie in enumerate(results):
-                            if isinstance(movie, dict) and 'poster' in movie:
-                                poster_url = movie['poster']
-                                if 'via.placeholder.com' in poster_url:
-                                    # Replace with working picsum.photos URL
-                                    movie['poster'] = f"https://picsum.photos/300/450?random={i+1}"
-                                    print(f"🔧 Fixed poster URL for {movie.get('title', 'Unknown')}")
+                            if isinstance(movie, dict):
+                                # Fix poster URLs if they're using blocked via.placeholder.com
+                                if 'poster' in movie:
+                                    poster_url = movie['poster']
+                                    if 'via.placeholder.com' in poster_url:
+                                        # Replace with working picsum.photos URL
+                                        movie['poster'] = f"https://picsum.photos/300/450?random={i+1}"
+                                        print(f"🔧 Fixed poster URL for {movie.get('title', 'Unknown')}")
+                                
+                                # Clean streaming URLs - remove newlines and whitespace
+                                if 'url' in movie and movie['url']:
+                                    original_url = movie['url']
+                                    cleaned_url = str(original_url).replace('\n', '').replace('\r', '').strip()
+                                    if cleaned_url != original_url:
+                                        movie['url'] = cleaned_url
+                                        print(f"🔧 Cleaned URL for {movie.get('title', 'Unknown')}: {cleaned_url}")
+                                
+                                # Also clean streaming_url field if it exists
+                                if 'streaming_url' in movie and movie['streaming_url']:
+                                    original_url = movie['streaming_url']
+                                    cleaned_url = str(original_url).replace('\n', '').replace('\r', '').strip()
+                                    if cleaned_url != original_url:
+                                        movie['streaming_url'] = cleaned_url
+                                        print(f"🔧 Cleaned streaming_url for {movie.get('title', 'Unknown')}: {cleaned_url}")
                         
                         print(f"✅ n8n returned {len(results)} movies")
                         return results
