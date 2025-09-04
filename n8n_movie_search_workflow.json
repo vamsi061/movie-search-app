@@ -46,30 +46,27 @@
     {
       "parameters": {
         "url": "=https://www.5movierulz.irish/search_movies?s={{ encodeURIComponent($node['Extract Parameters'].json.query) }}",
-        "actions": [
-          {
-            "type": "goto",
-            "waitUntil": "domcontentloaded",
-            "timeout": 30000
-          },
-          {
-            "type": "wait",
-            "milliseconds": 3000
-          },
-          {
-            "type": "evaluate",
-            "jsCode": "async () => {\n  try {\n    console.log('🚀 Starting Playwright execution...');\n    \n    // Test basic page access first\n    const currentUrl = page.url();\n    const pageTitle = await page.title();\n    console.log('📍 Current URL:', currentUrl);\n    console.log('📄 Page title:', pageTitle);\n    \n    // Get query parameter\n    const query = '{{ $node[\"Extract Parameters\"].json.query }}';\n    console.log('🔍 Query parameter:', query);\n    \n    if (!query) {\n      console.log('❌ No query provided');\n      return [{ error: 'No query provided', url: currentUrl, title: pageTitle }];\n    }\n    \n    const baseUrl = 'https://www.5movierulz.irish';\n    const results = [];\n    \n    // Test if page loaded correctly\n    const bodyText = await page.textContent('body');\n    console.log('📝 Page body length:', bodyText ? bodyText.length : 0);\n    \n    if (!bodyText || bodyText.length < 100) {\n      console.log('❌ Page seems empty or not loaded properly');\n      return [{ error: 'Page not loaded', url: currentUrl, bodyLength: bodyText ? bodyText.length : 0 }];\n    }\n    \n    // Try different selectors to find film elements\n    const selectors = [\n      'div[class*=\"film\"]',\n      '.film',\n      '[class*=\"movie\"]',\n      '.movie',\n      'article',\n      '.post'\n    ];\n    \n    let filmElements = [];\n    for (const selector of selectors) {\n      try {\n        const elements = await page.$$(selector);\n        console.log(`🔍 Selector \"${selector}\" found:`, elements.length, 'elements');\n        if (elements.length > 0) {\n          filmElements = elements;\n          break;\n        }\n      } catch (e) {\n        console.log(`❌ Selector \"${selector}\" failed:`, e.message);\n      }\n    }\n    \n    if (filmElements.length === 0) {\n      console.log('❌ No film elements found with any selector');\n      // Return debug info\n      const allDivs = await page.$$('div');\n      const allArticles = await page.$$('article');\n      return [{ \n        error: 'No film elements found', \n        url: currentUrl,\n        totalDivs: allDivs.length,\n        totalArticles: allArticles.length,\n        pageTitle: pageTitle,\n        query: query\n      }];\n    }\n    \n    console.log('📦 Found', filmElements.length, 'film elements');\n    \n    // Process first few elements for debugging\n    for (let i = 0; i < Math.min(filmElements.length, 5); i++) {\n      const element = filmElements[i];\n      \n      try {\n        console.log(`🎬 Processing element ${i + 1}...`);\n        \n        // Get element text\n        const fullText = await element.innerText();\n        console.log(`   Text length: ${fullText ? fullText.length : 0}`);\n        \n        if (!fullText) {\n          console.log('   ⚠️ Element has no text');\n          continue;\n        }\n        \n        // Check if contains query\n        const containsQuery = fullText.toLowerCase().includes(query.toLowerCase());\n        console.log(`   Contains \"${query}\": ${containsQuery}`);\n        \n        if (!containsQuery) {\n          console.log(`   ⏭️ Skipping - doesn't contain query`);\n          continue;\n        }\n        \n        console.log(`   ✅ Processing element ${i + 1} (contains \"${query}\")`);\n        \n        // Get links and images\n        const allLinks = await element.$$('a');\n        const allImages = await element.$$('img');\n        console.log(`   Found ${allLinks.length} links, ${allImages.length} images`);\n        \n        // Process first link for testing\n        if (allLinks.length > 0) {\n          const link = allLinks[0];\n          const linkHref = await link.getAttribute('href');\n          console.log(`   First link href: ${linkHref}`);\n          \n          if (linkHref) {\n            // Create a test movie entry\n            const movieData = {\n              title: `Test Movie ${i + 1} - N8N Playwright`,\n              url: linkHref.startsWith('http') ? linkHref : new URL(linkHref, baseUrl).href,\n              source: '5movierulz-debug',\n              year: '2024',\n              poster: allImages.length > 0 ? await allImages[0].getAttribute('src') : '',\n              genre: 'Debug',\n              rating: 'N/A',\n              debug: {\n                elementIndex: i,\n                textLength: fullText.length,\n                linksCount: allLinks.length,\n                imagesCount: allImages.length\n              }\n            };\n            \n            results.push(movieData);\n            console.log(`   ✅ Added debug movie: ${movieData.title}`);\n          }\n        }\n        \n      } catch (error) {\n        console.log(`❌ Error processing element ${i + 1}:`, error.message);\n        continue;\n      }\n    }\n    \n    console.log('🎯 Total debug results:', results.length);\n    \n    if (results.length === 0) {\n      return [{ \n        error: 'No results after processing', \n        url: currentUrl,\n        elementsFound: filmElements.length,\n        query: query,\n        pageTitle: pageTitle\n      }];\n    }\n    \n    return results;\n    \n  } catch (error) {\n    console.log('💥 Fatal error in Playwright execution:', error.message);\n    return [{ \n      error: 'Fatal execution error', \n      message: error.message,\n      stack: error.stack\n    }];\n  }\n}"
-          }
-        ],
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+            }
+          ]
+        },
         "options": {
-          "headless": true,
           "timeout": 30000
         }
       },
       "id": "b2c3d4e5-6f7g-8h9i-0j1k-l2m3n4o5p6q7",
-      "name": "Playwright Movie Scraper",
-      "type": "n8n-nodes-playwright.playwright",
-      "typeVersion": 1,
+      "name": "Fetch Search Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
       "position": [
         680,
         300
