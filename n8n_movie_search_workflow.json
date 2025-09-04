@@ -121,7 +121,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ {\n  \"query\": $node['Extract Parameters'].json.query,\n  \"results\": $('Extract Streaming URL').all(),\n  \"total\": $('Extract Streaming URL').length,\n  \"message\": \"Found \" + $('Extract Streaming URL').length + \" movies via n8n\",\n  \"source\": \"n8n-workflow\"\n} }}",
+        "responseBody": "={{ {\n  \"query\": $node['Extract Parameters'].json.query,\n  \"results\": $('Parse Movies').all(),\n  \"total\": $('Parse Movies').length,\n  \"message\": \"Found \" + $('Parse Movies').length + \" movies via n8n\",\n  \"source\": \"n8n-workflow\"\n} }}",
         "options": {}
       },
       "id": "g7h8i9j0-1k2l-3m4n-5o6p-q7r8s9t0u1v2",
