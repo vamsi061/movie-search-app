@@ -12,12 +12,20 @@ The issue is in the N8N workflow execution. The workflow is correctly extracting
 ## ✅ **Solution**
 
 ### **Step 1: Import the Fixed Workflow**
-1. **Download** the fixed workflow: `n8n_fixed_multiple_results_workflow.json`
+
+**Option A: Import Fixed Main Workflow**
+1. **Download** the fixed workflow: `n8n_fixed_workflow.json`
 2. **Go to your N8N instance**: https://n8n-7j94.onrender.com
 3. **Import the new workflow**:
    - Click "+" → "Import from File"
-   - Upload `n8n_fixed_multiple_results_workflow.json`
+   - Upload `n8n_fixed_workflow.json`
 4. **Activate the workflow**
+
+**Option B: Import Simple Test Workflow (Recommended for testing)**
+1. **Download** the test workflow: `n8n_simple_test_workflow.json`
+2. **Import and activate it**
+3. **Test**: `curl "https://n8n-7j94.onrender.com/webhook/test-search?query=rrr&max_results=5"`
+4. **Should return 5 movies** with streaming URLs
 
 ### **Step 2: Key Changes Made**
 The fixed workflow includes:
