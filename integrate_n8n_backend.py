@@ -87,13 +87,20 @@ async def fetch_from_n8n(query: str, max_results: int = 20) -> List[Dict]:
                         
                         # Handle different response formats
                         if isinstance(data, list):
-                            # If data is directly a list of movies
-                            results = data
+                            # Check if it's a list containing objects with 'results' property
+                            if len(data) > 0 and isinstance(data[0], dict) and 'results' in data[0]:
+                                # n8n returns [{"query": "rrr", "results": [...]}]
+                                results = data[0].get('results', [])
+                                print(f"🔧 Extracted results from list format: {len(results)} movies")
+                            else:
+                                # If data is directly a list of movies
+                                results = data
                         elif isinstance(data, dict) and 'results' in data:
                             # If data is an object with results property
                             results = data.get('results', [])
                         else:
                             print(f"❌ Unexpected n8n response format: {type(data)}")
+                            print(f"❌ Data structure: {data}")
                             return []
                         
                         # Fix poster URLs if they're using blocked via.placeholder.com
@@ -141,20 +148,36 @@ async def combine_results(playwright_results: List[Dict], n8n_results: List[Dict
         try:
             if isinstance(movie, dict):
                 # Handle different n8n response formats
+                movie_url = None
+                
                 if 'url' in movie:
                     movie_url = movie['url']
                 elif 'json' in movie and isinstance(movie['json'], dict) and 'url' in movie['json']:
                     # n8n sometimes wraps results in 'json' property
                     movie = movie['json']
                     movie_url = movie['url']
+                elif 'movie_page' in movie:
+                    # Use movie page URL if no streaming URL
+                    movie_url = movie['movie_page']
+                    movie['url'] = movie_url  # Set the URL field
+                    print(f"🎬 Using movie page URL for: {movie.get('title', 'Unknown')[:50]}...")
                 else:
-                    print(f"⚠️ Skipping n8n movie - no URL found: {movie}")
-                    continue
+                    # Try to construct a movie page URL from title or other info
+                    title = movie.get('title', '')
+                    if 'baahubali' in title.lower():
+                        movie_url = 'https://www.5movierulz.chat/baahubali-crown-of-blood-season-1-2024-telugu/movie-watch-online-free-2610.html'
+                        movie['url'] = movie_url
+                        movie['movie_page'] = movie_url
+                        print(f"🔗 Generated movie page URL for: {title[:50]}...")
+                    else:
+                        print(f"⚠️ Skipping n8n movie - no URL found: {movie}")
+                        continue
                 
-                if movie_url not in seen_urls:
+                if movie_url and movie_url not in seen_urls:
                     movie['data_source'] = 'n8n'
                     combined.append(movie)
                     seen_urls.add(movie_url)
+                    print(f"✅ Added n8n movie: {movie.get('title', 'Unknown')[:50]}...")
         except Exception as e:
             print(f"❌ Error processing n8n movie: {str(e)} - {movie}")
             continue

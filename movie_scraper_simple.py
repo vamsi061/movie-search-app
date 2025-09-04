@@ -17,7 +17,7 @@ async def search_movies_simple(query: str, max_results: int = 20) -> List[Dict]:
     results = []
     
     try:
-        base_url = "https://www.5movierulz.irish"
+        base_url = "https://www.5movierulz.chat"
         search_url = f"{base_url}/search_movies?s={quote(query)}"
         
         print(f"🔍 Searching: {search_url}")
