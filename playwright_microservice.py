@@ -60,22 +60,29 @@ async def get_browser():
     """Get or create browser instance"""
     global browser, context
     if browser is None:
-        playwright = await async_playwright().start()
-        browser = await playwright.chromium.launch(
-            headless=True,
-            args=[
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--no-zygote',
-                '--disable-gpu'
-            ]
-        )
-        context = await browser.new_context(
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        )
+        try:
+            playwright = await async_playwright().start()
+            browser = await playwright.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--disable-gpu'
+                ]
+            )
+            context = await browser.new_context(
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            )
+            logger.info("✅ Browser instance created successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to create browser: {e}")
+            if "Executable doesn't exist" in str(e):
+                logger.error("💡 Playwright browsers not installed. Run: playwright install chromium")
+            raise e
     return context
 
 async def extract_streaming_url(movie_url: str, timeout: int = 30000) -> Dict[str, Any]:
@@ -201,8 +208,14 @@ async def extract_streaming_url(movie_url: str, timeout: int = 30000) -> Dict[st
 async def startup_event():
     """Initialize browser on startup"""
     logger.info("🚀 Starting Playwright microservice...")
-    await get_browser()
-    logger.info("✅ Playwright browser initialized")
+    try:
+        await get_browser()
+        logger.info("✅ Playwright browser initialized")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize browser: {e}")
+        logger.error("💡 Make sure to run: playwright install chromium")
+        # Don't fail startup - let the service start and handle errors per request
+        pass
 
 @app.on_event("shutdown")
 async def shutdown_event():
