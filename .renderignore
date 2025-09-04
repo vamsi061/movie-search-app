@@ -1,0 +1,16 @@
+# Force Render to use Python deployment, not Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Ignore development files
+*.pyc
+__pycache__/
+.env
+.venv/
+venv/
+
+# Ignore build artifacts
+build/
+dist/
+*.egg-info/
