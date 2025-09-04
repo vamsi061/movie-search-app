@@ -33,45 +33,9 @@ async def fetch_from_n8n(query: str, max_results: int = 20) -> List[Dict]:
                     print(f"🔍 Raw n8n response: {raw_text[:500]}...")
                     
                     if not raw_text.strip():
-                        print("❌ n8n returned empty response - workflow may not be active")
-                        print("💡 Please re-import and activate the updated n8n workflow")
-                        print("🔄 Using fallback n8n results for now...")
-                        
-                        # Temporary fallback results with real posters
-                        fallback_results = [
-                            {
-                                'title': 'Grrr (2024) HDRip Malayalam Movie - N8N',
-                                'url': 'https://www.5movierulz.irish/grrr-2024-malayalam/movie-watch-online-free-3209.html',
-                                'source': 'n8n-5movierulz',
-                                'year': '2024',
-                                'poster': 'https://www.5movierulz.irish/uploads/Grrr-Malayalam.jpg',
-                                'language': 'MAL',
-                                'quality': 'HDRip',
-                                'genre': 'Action',
-                                'rating': '8.5'
-                            },
-                            {
-                                'title': 'RRR (2022) BRRip Telugu Movie - N8N',
-                                'url': 'https://www.5movierulz.irish/rrr-2022-telugu/movie-watch-online-free-5105.html',
-                                'source': 'n8n-5movierulz',
-                                'year': '2022',
-                                'poster': 'https://www.5movierulz.irish/uploads/RRR-Telugu.jpg',
-                                'language': 'TEL',
-                                'quality': 'BRRip',
-                                'genre': 'Drama',
-                                'rating': '9.0'
-                            }
-                        ]
-                        
-                        # Filter based on query
-                        query_lower = query.lower()
-                        filtered_results = [movie for movie in fallback_results 
-                                          if query_lower in movie['title'].lower()]
-                        
-                        if filtered_results:
-                            print(f"✅ Fallback returned {len(filtered_results)} movies")
-                            return filtered_results
-                        
+                        print("❌ n8n returned empty response - workflow is not working")
+                        print("💡 N8N workflow needs to be fixed/imported/activated")
+                        print("🔧 Skipping N8N for now - Playwright is working perfectly")
                         return []
                     
                     try:
