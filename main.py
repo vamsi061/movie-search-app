@@ -31,16 +31,13 @@ async def search_movies(query: str = ""):
         
         print(f"🔍 Searching for: {query}")
         
-        # Run both scrapers concurrently for faster results
-        playwright_task = search_movies_simple(query, max_results=15)
-        n8n_task = fetch_from_n8n(query, max_results=15)
+        # TEMPORARY: Use only Playwright until N8N workflow is fixed
+        # N8N workflow only finds 1 film element instead of 7 like Playwright
+        playwright_results = await search_movies_simple(query, max_results=20)
+        n8n_results = []  # Disable N8N temporarily
         
-        # Wait for both to complete
-        playwright_results, n8n_results = await asyncio.gather(
-            playwright_task, 
-            n8n_task,
-            return_exceptions=True
-        )
+        print(f"🔧 TEMPORARY: Using only Playwright results until N8N workflow is fixed")
+        print(f"🔧 N8N issue: Finds 1 film element vs Playwright finds 7 elements")
         
         # Handle exceptions
         if isinstance(playwright_results, Exception):
