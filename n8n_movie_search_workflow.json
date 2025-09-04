@@ -164,7 +164,7 @@
       "main": [
         [
           {
-            "node": "Fetch Movie Search Page",
+            "node": "Playwright Movie Scraper",
             "type": "main",
             "index": 0
           }
