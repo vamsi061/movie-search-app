@@ -27,12 +27,48 @@ async def fetch_from_n8n(query: str, max_results: int = 20) -> List[Dict]:
         async with aiohttp.ClientSession() as session:
             async with session.get(n8n_url, params=params, timeout=60) as response:
                 if response.status == 200:
-                    data = await response.json()
-                    results = data.get('results', [])
-                    print(f"✅ n8n returned {len(results)} movies")
-                    return results
+                    # Get raw text first to debug
+                    raw_text = await response.text()
+                    print(f"🔍 Raw n8n response length: {len(raw_text)}")
+                    print(f"🔍 Raw n8n response: {raw_text[:500]}...")
+                    
+                    if not raw_text.strip():
+                        print("❌ n8n returned empty response - workflow may not be active")
+                        print("💡 Please re-import and activate the updated n8n workflow")
+                        return []
+                    
+                    try:
+                        # Parse the response again from text
+                        import json
+                        data = json.loads(raw_text)
+                        print(f"🔍 Parsed JSON data type: {type(data)}")
+                        print(f"🔍 Parsed JSON data: {data}")
+                        
+                        if data is None:
+                            print("❌ n8n returned null data")
+                            return []
+                        
+                        # Handle different response formats
+                        if isinstance(data, list):
+                            # If data is directly a list of movies
+                            results = data
+                        elif isinstance(data, dict) and 'results' in data:
+                            # If data is an object with results property
+                            results = data.get('results', [])
+                        else:
+                            print(f"❌ Unexpected n8n response format: {type(data)}")
+                            return []
+                        
+                        print(f"✅ n8n returned {len(results)} movies")
+                        return results
+                    except Exception as json_error:
+                        print(f"❌ JSON parsing error: {json_error}")
+                        print(f"❌ Raw response: {raw_text}")
+                        return []
                 else:
                     print(f"❌ n8n request failed: {response.status}")
+                    response_text = await response.text()
+                    print(f"❌ Error response: {response_text}")
                     return []
             
     except Exception as e:
