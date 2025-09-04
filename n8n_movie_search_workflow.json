@@ -164,14 +164,25 @@
       "main": [
         [
           {
-            "node": "Playwright Movie Scraper",
+            "node": "Fetch Search Page",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Playwright Movie Scraper": {
+    "Fetch Search Page": {
+      "main": [
+        [
+          {
+            "node": "Parse Movies with Playwright Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Movies with Playwright Logic": {
       "main": [
         [
           {
