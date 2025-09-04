@@ -45,61 +45,29 @@
     },
     {
       "parameters": {
-        "url": "https://www.5movierulz.irish/search_movies",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "s",
-              "value": "={{ $node['Extract Parameters'].json.query }}"
-            }
-          ]
-        },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "User-Agent",
-              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            },
-            {
-              "name": "Accept",
-              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-            },
-            {
-              "name": "Accept-Language",
-              "value": "en-US,en;q=0.5"
-            },
-            {
-              "name": "Accept-Encoding",
-              "value": "gzip, deflate"
-            },
-            {
-              "name": "Connection",
-              "value": "keep-alive"
-            },
-            {
-              "name": "Upgrade-Insecure-Requests",
-              "value": "1"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 30000,
-          "redirect": {
-            "redirect": {}
+        "url": "=https://www.5movierulz.irish/search_movies?s={{ encodeURIComponent($node['Extract Parameters'].json.query) }}",
+        "actions": [
+          {
+            "type": "goto"
           },
-          "response": {
-            "response": {
-              "neverError": true
-            }
+          {
+            "type": "wait",
+            "milliseconds": 3000
+          },
+          {
+            "type": "evaluate",
+            "jsCode": "() => {\n  const query = '{{ $node[\"Extract Parameters\"].json.query }}'.toLowerCase();\n  const movies = [];\n  const baseUrl = 'https://www.5movierulz.irish';\n  \n  console.log('Searching for:', query);\n  \n  // Find all movie elements\n  const filmElements = document.querySelectorAll('div[class*=\"film\"]');\n  console.log('Found film elements:', filmElements.length);\n  \n  filmElements.forEach((element, index) => {\n    try {\n      const textContent = element.textContent.toLowerCase();\n      \n      // Check if this element contains our query\n      if (!textContent.includes(query)) {\n        return;\n      }\n      \n      // Extract movie link\n      const linkElement = element.querySelector('a[href]');\n      if (!linkElement) return;\n      \n      let movieUrl = linkElement.href;\n      if (!movieUrl.startsWith('http')) {\n        movieUrl = baseUrl + movieUrl;\n      }\n      \n      // Extract poster image\n      const imgElement = element.querySelector('img[src]');\n      let posterUrl = '';\n      if (imgElement) {\n        let posterSrc = imgElement.src;\n        if (posterSrc && !posterSrc.startsWith('data:')) {\n          posterUrl = posterSrc.startsWith('http') ? posterSrc : baseUrl + posterSrc;\n        }\n      }\n      \n      // Extract title from URL or text\n      let title = movieUrl.split('/').pop() || '';\n      title = title.replace(/-/g, ' ').replace(/movie watch online free/gi, '').trim();\n      \n      // Determine language and format title\n      if (movieUrl.includes('malayalam')) {\n        title = title + ' Malayalam Movie - N8N';\n      } else if (movieUrl.includes('telugu')) {\n        title = title + ' Telugu Movie - N8N';\n      } else if (movieUrl.includes('tamil')) {\n        title = title + ' Tamil Movie - N8N';\n      } else if (movieUrl.includes('hindi')) {\n        title = title + ' Hindi Movie - N8N';\n      } else if (movieUrl.includes('english')) {\n        title = title + ' English Movie - N8N';\n      } else {\n        title = title + ' Movie - N8N';\n      }\n      \n      // Extract year\n      const yearMatch = title.match(/\\b(19|20)\\d{2}\\b/);\n      const year = yearMatch ? yearMatch[0] : '2024';\n      \n      movies.push({\n        title: title,\n        url: movieUrl,\n        source: 'n8n-playwright-5movierulz',\n        year: year,\n        poster: posterUrl,\n        language: movieUrl.includes('malayalam') ? 'MAL' : \n                 movieUrl.includes('telugu') ? 'TEL' : \n                 movieUrl.includes('tamil') ? 'TAM' : \n                 movieUrl.includes('hindi') ? 'HIN' : \n                 movieUrl.includes('english') ? 'ENG' : 'UNK',\n        quality: 'HDRip',\n        genre: 'Action',\n        rating: '8.5'\n      });\n      \n      console.log('Extracted movie:', title, 'with poster:', posterUrl);\n      \n      // Limit results\n      if (movies.length >= 10) {\n        return;\n      }\n      \n    } catch (error) {\n      console.log('Error processing element:', error);\n    }\n  });\n  \n  console.log('Total extracted movies:', movies.length);\n  return movies;\n}"
           }
+        ],
+        "options": {
+          "headless": true,
+          "timeout": 30000
         }
       },
       "id": "b2c3d4e5-6f7g-8h9i-0j1k-l2m3n4o5p6q7",
-      "name": "Fetch Movie Search Page",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "name": "Playwright Movie Scraper",
+      "type": "n8n-nodes-base.playwright",
+      "typeVersion": 1,
       "position": [
         680,
         300
@@ -164,7 +132,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({\n  query: $node['Extract Parameters'].json.query,\n  results: $json,\n  total: $json.length,\n  message: 'Found ' + $json.length + ' movies via n8n',\n  source: 'n8n-workflow'\n}) }}",
+        "responseBody": "={{ JSON.stringify({\n  query: $node['Extract Parameters'].json.query,\n  results: $json,\n  total: Array.isArray($json) ? $json.length : 0,\n  message: 'Found ' + (Array.isArray($json) ? $json.length : 0) + ' movies via n8n Playwright',\n  source: 'n8n-playwright-workflow'\n}) }}",
         "options": {}
       },
       "id": "g7h8i9j0-1k2l-3m4n-5o6p-q7r8s9t0u1v2",
@@ -201,40 +169,7 @@
         ]
       ]
     },
-    "Fetch Movie Search Page": {
-      "main": [
-        [
-          {
-            "node": "Parse Movies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Movies": {
-      "main": [
-        [
-          {
-            "node": "Fetch Movie Page",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch Movie Page": {
-      "main": [
-        [
-          {
-            "node": "Extract Streaming URL",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extract Streaming URL": {
+    "Playwright Movie Scraper": {
       "main": [
         [
           {
