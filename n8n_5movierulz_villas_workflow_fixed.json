@@ -134,6 +134,7 @@
     },
     {
       "parameters": {
+        "method": "POST",
         "url": "https://movie-search-app-5d0y.onrender.com/api/append-results",
         "sendBody": true,
         "specifyBody": "json",
