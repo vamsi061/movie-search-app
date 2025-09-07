@@ -29,54 +29,7 @@
     {
       "parameters": {
         "url": "={{ $json.targetUrl }}",
-        "options": {
-          "waitForSelector": ".ml-item, .item, .movie-item, article, .post",
-          "waitTime": 8000,
-          "headless": true,
-          "stealth": true,
-          "timeout": 60000
-        },
-        "browserOptions": {
-          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "viewport": {
-            "width": 1920,
-            "height": 1080
-          },
-          "extraHTTPHeaders": {
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br",
-            "DNT": "1",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1"
-          }
-        },
-        "actions": [
-          {
-            "action": "wait",
-            "parameters": {
-              "time": 3000
-            }
-          },
-          {
-            "action": "evaluate",
-            "parameters": {
-              "script": "() => { window.scrollTo(0, document.body.scrollHeight/2); return 'scrolled'; }"
-            }
-          },
-          {
-            "action": "wait",
-            "parameters": {
-              "time": 2000
-            }
-          },
-          {
-            "action": "evaluate",
-            "parameters": {
-              "script": "() => { const links = document.querySelectorAll('a'); console.log('Found links:', links.length); return links.length; }"
-            }
-          }
-        ],
+        "waitTime": 5000,
         "output": "html"
       },
       "id": "playwright-scrape",
