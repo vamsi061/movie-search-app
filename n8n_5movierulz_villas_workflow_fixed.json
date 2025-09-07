@@ -28,17 +28,57 @@
     },
     {
       "parameters": {
-        "jsCode": "// Skip HTTP request and return mock data directly\nconst searchQuery = $('Prepare Search Data').first().json.searchQuery;\n\nconsole.log('Creating mock movie data for:', searchQuery);\n\n// Always return 6 RRR movies for testing\nconst mockMovies = [\n  {\n    title: 'RRR (2022) Telugu HD',\n    url: 'https://www.5movierulz.villas/rrr-2022-telugu-hd',\n    image: 'https://via.placeholder.com/300x450/667eea/ffffff?text=RRR+Telugu',\n    year: '2022',\n    rating: '8.8',\n    genre: 'Action, Drama',\n    quality: 'HD',\n    source: '5movierulz.villas',\n    searchQuery: searchQuery,\n    scrapedAt: new Date().toISOString()\n  },\n  {\n    title: 'RRR Hindi Dubbed BRRip',\n    url: 'https://www.5movierulz.villas/rrr-hindi-dubbed',\n    image: 'https://via.placeholder.com/300x450/764ba2/ffffff?text=RRR+Hindi',\n    year: '2022',\n    rating: '8.5',\n    genre: 'Action, Drama',\n    quality: 'BRRip',\n    source: '5movierulz.villas',\n    searchQuery: searchQuery,\n    scrapedAt: new Date().toISOString()\n  },\n  {\n    title: 'RRR Tamil 1080p',\n    url: 'https://www.5movierulz.villas/rrr-tamil-1080p',\n    image: 'https://via.placeholder.com/300x450/f093fb/ffffff?text=RRR+Tamil',\n    year: '2022',\n    rating: '8.7',\n    genre: 'Action, Drama',\n    quality: '1080p',\n    source: '5movierulz.villas',\n    searchQuery: searchQuery,\n    scrapedAt: new Date().toISOString()\n  },\n  {\n    title: 'RRR Malayalam HDRip',\n    url: 'https://www.5movierulz.villas/rrr-malayalam-hdrip',\n    image: 'https://via.placeholder.com/300x450/4facfe/ffffff?text=RRR+Malayalam',\n    year: '2022',\n    rating: '8.6',\n    genre: 'Action, Drama',\n    quality: 'HDRip',\n    source: '5movierulz.villas',\n    searchQuery: searchQuery,\n    scrapedAt: new Date().toISOString()\n  },\n  {\n    title: 'RRR English 720p',\n    url: 'https://www.5movierulz.villas/rrr-english-720p',\n    image: 'https://via.placeholder.com/300x450/34d399/ffffff?text=RRR+English',\n    year: '2022',\n    rating: '8.3',\n    genre: 'Action, Drama',\n    quality: '720p',\n    source: '5movierulz.villas',\n    searchQuery: searchQuery,\n    scrapedAt: new Date().toISOString()\n  },\n  {\n    title: 'RRR Kannada HD',\n    url: 'https://www.5movierulz.villas/rrr-kannada-hd',\n    image: 'https://via.placeholder.com/300x450/fbbf24/ffffff?text=RRR+Kannada',\n    year: '2022',\n    rating: '8.4',\n    genre: 'Action, Drama',\n    quality: 'HD',\n    source: '5movierulz.villas',\n    searchQuery: searchQuery,\n    scrapedAt: new Date().toISOString()\n  }\n];\n\nconsole.log('Returning 6 mock movies');\nreturn { body: 'mock data', movies: mockMovies };"
+        "url": "={{ $json.targetUrl }}",
+        "waitForSelector": ".ml-item, .item, .movie-item, article",
+        "waitTime": 5000,
+        "headless": true,
+        "stealth": true,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "timeout": 60000,
+        "outputType": "html",
+        "extraHTTPHeaders": {
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.5",
+          "Accept-Encoding": "gzip, deflate, br",
+          "DNT": "1",
+          "Connection": "keep-alive",
+          "Upgrade-Insecure-Requests": "1",
+          "Sec-Fetch-Dest": "document",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-Site": "none"
+        },
+        "actions": [
+          {
+            "type": "wait",
+            "value": 3000
+          },
+          {
+            "type": "evaluate",
+            "value": "() => { window.scrollTo(0, document.body.scrollHeight/2); }"
+          },
+          {
+            "type": "wait",
+            "value": 2000
+          },
+          {
+            "type": "evaluate",
+            "value": "() => { console.log('Page loaded, found elements:', document.querySelectorAll('a').length); }"
+          }
+        ]
       },
-      "id": "mock-data",
-      "name": "Generate Mock Data",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "playwright-scrape",
+      "name": "Playwright Scrape",
+      "type": "n8n-nodes-base.playwright",
+      "typeVersion": 1,
       "position": [500, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Get mock data from previous node\nconst mockData = $input.first().json;\nconst searchQuery = $('Prepare Search Data').first().json.searchQuery;\n\nconsole.log('Processing mock data for:', searchQuery);\n\n// Return the movies from mock data\nif (mockData.movies && mockData.movies.length > 0) {\n  console.log(`Returning ${mockData.movies.length} movies`);\n  return mockData.movies;\n}\n\n// Fallback if no movies\nconsole.log('No movies found, returning empty array');\nreturn [];"
+        "jsCode": "// Parse real movie results from Playwright HTML\nconst playwrightData = $input.first().json;\nconst searchQuery = $('Prepare Search Data').first().json.searchQuery;\n\nlet htmlContent = playwrightData.html || playwrightData.content || '';\n\nconsole.log('HTML content length:', htmlContent.length);\nconsole.log('Search query for parsing:', searchQuery);\n\nconst movies = [];\n\n// Check if we got valid HTML\nif (htmlContent.length < 1000) {\n  console.log('HTML too short, might be blocked or page not loaded');\n  return [];\n}\n\n// Real parsing for 5movierulz.villas\n// Look for movie containers with various possible selectors\nconst moviePatterns = [\n  // Pattern 1: Standard movie item containers\n  /<div[^>]*class=\"[^\"]*(?:ml-item|movie-item|item)[^\"]*\"[^>]*>([\\s\\S]*?)<\\/div>/gi,\n  // Pattern 2: Article containers\n  /<article[^>]*class=\"[^\"]*item[^\"]*\"[^>]*>([\\s\\S]*?)<\\/article>/gi,\n  // Pattern 3: Any div with movie-related content\n  /<div[^>]*class=\"[^\"]*(?:post|entry|movie)[^\"]*\"[^>]*>([\\s\\S]*?)<\\/div>/gi\n];\n\nfor (const pattern of moviePatterns) {\n  let match;\n  while ((match = pattern.exec(htmlContent)) !== null && movies.length < 10) {\n    const itemHtml = match[1];\n    \n    // Extract title and link from the item\n    const titleLinkMatch = itemHtml.match(/<h[1-6][^>]*>\\s*<a[^>]*href=\"([^\"]+)\"[^>]*>([^<]+)<\\/a>\\s*<\\/h[1-6]>/i) ||\n                          itemHtml.match(/<a[^>]*href=\"([^\"]+)\"[^>]*class=\"[^\"]*title[^\"]*\"[^>]*>([^<]+)<\\/a>/i) ||\n                          itemHtml.match(/<a[^>]*href=\"([^\"]+)\"[^>]*>([^<]+)<\\/a>/i);\n    \n    if (titleLinkMatch) {\n      const url = titleLinkMatch[1].trim();\n      const title = titleLinkMatch[2].trim();\n      \n      // Skip navigation links\n      if (title.toLowerCase().includes('home') || \n          title.toLowerCase().includes('contact') || \n          title.toLowerCase().includes('about') ||\n          title === 'MovieRulz' ||\n          url.includes('/genre/') || \n          url.includes('/year/') ||\n          url.includes('/category/')) {\n        continue;\n      }\n      \n      // Must contain search query\n      if (!title.toLowerCase().includes(searchQuery.toLowerCase()) && \n          !url.toLowerCase().includes(searchQuery.toLowerCase())) {\n        continue;\n      }\n      \n      // Clean title\n      const cleanTitle = title.replace(/\\s+/g, ' ').trim();\n      if (cleanTitle.length < 3 || cleanTitle.length > 150) {\n        continue;\n      }\n      \n      // Make URL absolute\n      let fullUrl = url;\n      if (url.startsWith('/')) {\n        fullUrl = 'https://www.5movierulz.villas' + url;\n      }\n      \n      // Extract image\n      const imageMatch = itemHtml.match(/<img[^>]*src=\"([^\"]+)\"/i);\n      let image = imageMatch ? imageMatch[1] : '';\n      if (image && image.startsWith('/')) {\n        image = 'https://www.5movierulz.villas' + image;\n      }\n      if (!image) {\n        image = `https://via.placeholder.com/300x450/667eea/ffffff?text=${encodeURIComponent(cleanTitle.substring(0, 20))}`;\n      }\n      \n      // Extract metadata\n      const yearMatch = cleanTitle.match(/\\b(20\\d{2})\\b/) || itemHtml.match(/\\b(20\\d{2})\\b/);\n      const year = yearMatch ? yearMatch[1] : '2022';\n      \n      const qualityMatch = cleanTitle.match(/\\b(HDRip|BRRip|DVDRip|HD|4K|1080p|720p|CAM|TS|WebRip)\\b/i);\n      const quality = qualityMatch ? qualityMatch[1] : 'HD';\n      \n      const langMatch = cleanTitle.match(/\\b(Hindi|Telugu|Tamil|Malayalam|Kannada|English|Bengali)\\b/i);\n      const language = langMatch ? langMatch[1] : 'Multi';\n      \n      const movie = {\n        title: cleanTitle,\n        url: fullUrl,\n        image: image,\n        year: year,\n        rating: '8.0',\n        genre: 'Action, Drama',\n        quality: quality,\n        language: language,\n        source: '5movierulz.villas',\n        searchQuery: searchQuery,\n        scrapedAt: new Date().toISOString()\n      };\n      \n      movies.push(movie);\n      console.log(`Found movie: ${cleanTitle}`);\n    }\n  }\n  \n  // If we found movies with this pattern, break\n  if (movies.length > 0) {\n    break;\n  }\n}\n\n// If no movies found with structured parsing, try simple link extraction\nif (movies.length === 0) {\n  console.log('No structured results, trying simple link extraction...');\n  \n  const linkPattern = /<a[^>]*href=\"([^\"]+)\"[^>]*>([^<]+)<\\/a>/gi;\n  let linkMatch;\n  \n  while ((linkMatch = linkPattern.exec(htmlContent)) !== null && movies.length < 6) {\n    const url = linkMatch[1].trim();\n    const text = linkMatch[2].trim();\n    \n    // Must contain search query and look like a movie\n    if ((url.toLowerCase().includes(searchQuery.toLowerCase()) || \n         text.toLowerCase().includes(searchQuery.toLowerCase())) &&\n        (url.includes('movie') || url.includes('watch') || \n         text.includes('movie') || text.includes('watch') ||\n         url.includes(searchQuery.toLowerCase()))) {\n      \n      // Skip navigation\n      if (text.toLowerCase().includes('home') || \n          text.toLowerCase().includes('contact') || \n          text.toLowerCase().includes('about') ||\n          text === 'MovieRulz') {\n        continue;\n      }\n      \n      let fullUrl = url;\n      if (url.startsWith('/')) {\n        fullUrl = 'https://www.5movierulz.villas' + url;\n      }\n      \n      const movie = {\n        title: text.trim(),\n        url: fullUrl,\n        image: `https://via.placeholder.com/300x450/667eea/ffffff?text=${encodeURIComponent(text.substring(0, 15))}`,\n        year: '2022',\n        rating: '8.0',\n        genre: 'Action, Drama',\n        quality: 'HD',\n        source: '5movierulz.villas',\n        searchQuery: searchQuery,\n        scrapedAt: new Date().toISOString()\n      };\n      \n      movies.push(movie);\n      console.log(`Found link: ${text}`);\n    }\n  }\n}\n\nconsole.log(`Total movies found: ${movies.length}`);\nreturn movies;"
       },
       "id": "parse-movies",
       "name": "Parse Movie Results",
@@ -138,14 +178,14 @@
       "main": [
         [
           {
-            "node": "Generate Mock Data",
+            "node": "Playwright Scrape",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Generate Mock Data": {
+    "Playwright Scrape": {
       "main": [
         [
           {
