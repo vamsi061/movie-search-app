@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: movie-search-app
+    name: movie-search-n8n-app
     env: python
     buildCommand: pip install -r requirements.txt && playwright install chromium
     startCommand: python main.py
@@ -10,5 +10,5 @@ services:
         value: 8000
       - key: PYTHONUNBUFFERED
         value: 1
-      - key: NODE_OPTIONS
-        value: --max-old-space-size=256
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: /opt/render/.cache/ms-playwright

@@ -6,7 +6,9 @@ from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from contextlib import asynccontextmanager
 import uvicorn
+import httpx
 import asyncio
 import gc
 import psutil
@@ -16,7 +18,22 @@ import time
 import json
 import hashlib
 
-app = FastAPI(title="Render Optimized Movie Search")
+async def cleanup():
+    """Cleanup on shutdown"""
+    global browser_instance
+    if browser_instance:
+        await browser_instance.close()
+        print("🔒 Browser cleaned up")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("🚀 FastAPI app starting up...")
+    yield
+    # Shutdown
+    await cleanup()
+
+app = FastAPI(title="Render Optimized Movie Search", lifespan=lifespan)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -48,7 +65,7 @@ class UltraLightCache:
             return self.cache[key]
         return None
     
-    def set(self, key: str, value: List[Dict]):
+    def set(self, key: str, value: List[Dict], ttl: int = None):
         self._cleanup_if_needed()
         self.cache[key] = value
         self.access_times[key] = time.time()
@@ -251,35 +268,150 @@ def get_memory_usage():
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+async def trigger_n8n_workflow(query: str):
+    """Trigger n8n workflow to scrape results"""
+    try:
+        n8n_webhook_url = "https://n8n-instance-vnyx.onrender.com/webhook/movie-scraper-villas"
+        
+        # Try different HTTP methods and payload formats
+        methods_to_try = [
+            ("POST", {"query": query}),
+            ("GET", None),
+            ("POST", {"data": {"query": query}}),
+            ("POST", query)  # Just send the query string
+        ]
+        
+        for method, payload in methods_to_try:
+            try:
+                async with httpx.AsyncClient(timeout=20.0) as client:
+                    if method == "GET":
+                        # Try GET with query parameter
+                        response = await client.get(
+                            f"{n8n_webhook_url}?query={query}",
+                            headers={"User-Agent": "FastAPI-Movie-Search/1.0"}
+                        )
+                    else:
+                        # Try POST with different payloads
+                        if isinstance(payload, str):
+                            response = await client.post(
+                                n8n_webhook_url,
+                                content=payload,
+                                headers={"Content-Type": "text/plain"}
+                            )
+                        else:
+                            response = await client.post(
+                                n8n_webhook_url,
+                                json=payload,
+                                headers={"Content-Type": "application/json"}
+                            )
+                    
+                    print(f"🧪 Tried {method} with payload {type(payload).__name__}: {response.status_code}")
+                    
+                    if response.status_code in [200, 201, 202]:
+                        print(f"🚀 N8N workflow triggered successfully!")
+                        print(f"   Method: {method}")
+                        print(f"   Status: {response.status_code}")
+                        print(f"   Response: {response.text[:200]}...")
+                        return True
+                    elif response.status_code == 404:
+                        print(f"⚠️ 404 - Webhook not found or not active")
+                    else:
+                        print(f"⚠️ Unexpected status: {response.status_code}")
+                        print(f"   Response: {response.text[:200]}...")
+                        
+            except Exception as e:
+                print(f"❌ {method} request failed: {e}")
+                continue
+        
+        print("❌ All request methods failed")
+        return False
+                
+    except Exception as e:
+        print(f"❌ Error triggering N8N workflow: {e}")
+        return False
+
+async def wait_for_n8n_results(query: str, max_wait: int = 10):
+    """Wait for n8n results to be cached"""
+    cache_key = f"n8n_results_{query.lower()}"
+    
+    for i in range(max_wait):
+        await asyncio.sleep(1)
+        cached_data = cache.get(cache_key)
+        if cached_data and cached_data.get('movies'):
+            print(f"✅ N8N results received after {i+1} seconds")
+            return cached_data['movies']
+    
+    print(f"⏰ N8N results timeout after {max_wait} seconds")
+    return []
+
 @app.get("/api/search")
-async def search_movies_render(query: str = "", background_tasks: BackgroundTasks = None):
-    """Render-optimized search endpoint"""
+async def search_movies_render(query: str = "", use_n8n: bool = True):
+    """N8N-powered search endpoint - saves resources by using n8n for scraping"""
     if not query.strip():
         return {"query": query, "results": [], "message": "Please enter a search term"}
     
     start_time = time.time()
-    memory_before = get_memory_usage()
     
     try:
-        # Limit results for Render
-        results = await render_optimized_search(query, max_results=6)
+        # Check if we have cached n8n results first
+        n8n_cache_key = f"n8n_results_{query.lower()}"
+        cached_n8n_data = cache.get(n8n_cache_key)
+        
+        if cached_n8n_data and cached_n8n_data.get('movies'):
+            # Return cached n8n results immediately
+            movies = cached_n8n_data['movies']
+            search_time = time.time() - start_time
+            
+            print(f"⚡ Returning {len(movies)} cached n8n results for '{query}'")
+            
+            return {
+                "query": query,
+                "results": movies,
+                "total": len(movies),
+                "search_time": round(search_time, 2),
+                "source": "n8n-cached",
+                "cached": True,
+                "message": f"Found {len(movies)} movies from n8n cache in {search_time:.1f}s"
+            }
+        
+        if use_n8n:
+            # Trigger n8n workflow and wait for results
+            print(f"🚀 Triggering n8n workflow for fresh results: '{query}'")
+            
+            # Trigger the workflow
+            n8n_triggered = await trigger_n8n_workflow(query)
+            
+            if n8n_triggered:
+                # Wait for n8n results
+                n8n_results = await wait_for_n8n_results(query, max_wait=15)
+                
+                if n8n_results:
+                    search_time = time.time() - start_time
+                    
+                    return {
+                        "query": query,
+                        "results": n8n_results,
+                        "total": len(n8n_results),
+                        "search_time": round(search_time, 2),
+                        "source": "n8n-live",
+                        "cached": False,
+                        "message": f"Found {len(n8n_results)} movies from n8n in {search_time:.1f}s"
+                    }
+        
+        # Fallback to local scraper if n8n fails
+        print(f"🔄 N8N failed, falling back to local scraper for '{query}'")
+        results = await render_optimized_search(query, max_results=10)
         
         search_time = time.time() - start_time
-        memory_after = get_memory_usage()
-        
-        # Background cleanup
-        if background_tasks:
-            background_tasks.add_task(cleanup_memory)
         
         return {
             "query": query,
             "results": results,
             "total": len(results),
             "search_time": round(search_time, 2),
-            "memory_usage": f"{memory_after:.1f}MB",
-            "memory_delta": f"{memory_after - memory_before:+.1f}MB",
-            "cached": cache.get(f"{query.lower()}_6") is not None,
-            "message": f"Found {len(results)} movies in {search_time:.1f}s"
+            "source": "local-fallback",
+            "cached": cache.get(f"{query.lower()}_10") is not None,
+            "message": f"Found {len(results)} movies (local fallback) in {search_time:.1f}s"
         }
         
     except Exception as e:
@@ -337,13 +469,106 @@ async def clear_cache():
         "memory_usage": f"{get_memory_usage():.1f}MB"
     }
 
-@app.on_event("shutdown")
-async def cleanup():
-    """Cleanup on shutdown"""
-    global browser_instance
-    if browser_instance:
-        await browser_instance.close()
-        print("🔒 Browser cleaned up")
+@app.post("/api/append-results")
+async def append_movie_results(request: Request):
+    """Receive scraped movie results from n8n workflow and append to search results"""
+    try:
+        data = await request.json()
+        
+        # Log the received data
+        search_query = data.get('searchQuery', 'unknown')
+        total_results = data.get('totalResults', 0)
+        source = data.get('source', 'unknown')
+        
+        print(f"📥 Received {total_results} movies from {source} for query: '{search_query}'")
+        
+        # Store in cache for later retrieval
+        cache_key = f"n8n_results_{search_query.lower()}"
+        cache.set(cache_key, data)  # Cache for 1 hour
+        
+        # Format response
+        response_data = {
+            "status": "success",
+            "message": f"Successfully received and cached {total_results} movies from {source}",
+            "searchQuery": search_query,
+            "totalResults": total_results,
+            "source": source,
+            "cacheKey": cache_key,
+            "data": data
+        }
+        
+        return response_data
+        
+    except Exception as e:
+        print(f"❌ Error processing n8n results: {e}")
+        return {
+            "status": "error", 
+            "message": f"Failed to process results: {str(e)}"
+        }
+
+@app.get("/api/n8n-results/{query}")
+async def get_n8n_results(query: str):
+    """Retrieve cached n8n results for a specific query"""
+    try:
+        cache_key = f"n8n_results_{query.lower()}"
+        cached_data = cache.get(cache_key)
+        
+        if cached_data:
+            return {
+                "status": "success",
+                "found": True,
+                "data": cached_data
+            }
+        else:
+            return {
+                "status": "success",
+                "found": False,
+                "message": f"No cached results found for query: '{query}'"
+            }
+            
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error retrieving results: {str(e)}"
+        }
+
+@app.post("/api/trigger-n8n")
+async def manual_trigger_n8n(request: Request):
+    """Manually trigger n8n workflow for testing"""
+    try:
+        data = await request.json()
+        query = data.get('query', 'lokah')
+        
+        print(f"🧪 Manual n8n trigger for: '{query}'")
+        
+        # Trigger the workflow
+        success = await trigger_n8n_workflow(query)
+        
+        if success:
+            # Wait for results
+            results = await wait_for_n8n_results(query, max_wait=20)
+            
+            return {
+                "status": "success",
+                "query": query,
+                "triggered": True,
+                "results_received": len(results) > 0,
+                "total_results": len(results),
+                "message": f"N8N workflow completed. Found {len(results)} movies."
+            }
+        else:
+            return {
+                "status": "error",
+                "query": query,
+                "triggered": False,
+                "message": "Failed to trigger n8n workflow"
+            }
+            
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error: {str(e)}"
+        }
 
 if __name__ == "__main__":
     # Render-optimized uvicorn settings

@@ -1,0 +1,160 @@
+{
+  "name": "MovieRulz Playwright Scraper",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "movie-scraper",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 300],
+      "webhookId": "movie-scraper-final"
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhookData = $input.first().json; let query = 'rrr'; if (webhookData.query && webhookData.query.query) { query = webhookData.query.query; } else if (webhookData.body && webhookData.body.query) { query = webhookData.body.query; } else if (webhookData.query && typeof webhookData.query === 'string') { query = webhookData.query; } query = String(query).trim(); if (!query || query === 'undefined' || query === 'null') { query = 'rrr'; } console.log('Search query:', query); return { searchQuery: query, targetUrl: 'https://www.5movierulz.villas/search_movies?s=' + encodeURIComponent(query) };"
+      },
+      "id": "prepare-search",
+      "name": "Prepare Search Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.targetUrl }}",
+        "waitForSelector": "body",
+        "waitTime": 5000,
+        "headless": true,
+        "stealth": true,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "timeout": 45000,
+        "outputType": "html"
+      },
+      "id": "playwright-scrape",
+      "name": "Playwright Scrape",
+      "type": "n8n-nodes-playwright.playwright",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const playwrightData = $input.first().json; const searchQuery = $('Prepare Search Data').first().json.searchQuery; let htmlContent = ''; if (playwrightData.html) { htmlContent = playwrightData.html; } else if (playwrightData.content) { htmlContent = playwrightData.content; } else if (typeof playwrightData === 'string') { htmlContent = playwrightData; } console.log('HTML length:', htmlContent.length); const movies = []; const lines = htmlContent.split('\\n'); for (let i = 0; i < lines.length; i++) { const line = lines[i]; if (line.includes('title=') && line.includes('href=') && line.includes('movie')) { const titleMatch = line.match(/title=\"([^\"]*)\"/); const hrefMatch = line.match(/href=\"([^\"]*)\"/); if (titleMatch && hrefMatch) { const title = titleMatch[1]; const href = hrefMatch[1]; if (title && href && title.length > 5) { let year = 'N/A'; const yearMatch = title.match(/\\((\\d{4})\\)/); if (yearMatch) year = yearMatch[1]; let quality = 'Unknown'; if (title.includes('HDRip')) quality = 'HDRip'; else if (title.includes('DVDScr')) quality = 'DVDScr'; else if (title.includes('BRRip')) quality = 'BRRip'; let language = 'Unknown'; if (title.includes('Telugu')) language = 'Telugu'; else if (title.includes('Hindi')) language = 'Hindi'; else if (title.includes('Tamil')) language = 'Tamil'; else if (title.includes('Malayalam')) language = 'Malayalam'; const cleanTitle = title.replace(/\\s*\\(\\d{4}\\).*$/i, '').trim(); movies.push({ title: cleanTitle, fullTitle: title, url: href, year: year, quality: quality, language: language, source: '5movierulz.villas', searchQuery: searchQuery }); } } } } console.log('Found movies:', movies.length); return movies.slice(0, 20);"
+      },
+      "id": "parse-movies",
+      "name": "Parse Movie Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.title }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        }
+      },
+      "id": "filter-valid",
+      "name": "Filter Valid Movies",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const movies = $input.all(); const searchQuery = movies[0]?.json?.searchQuery || 'rrr'; return { searchQuery: searchQuery, totalResults: movies.length, source: '5movierulz.villas', scrapedAt: new Date().toISOString(), scrapeMethod: 'playwright-docker', movies: movies.map(item => item.json) };"
+      },
+      "id": "format-results",
+      "name": "Format Final Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Search Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Search Data": {
+      "main": [
+        [
+          {
+            "node": "Playwright Scrape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Playwright Scrape": {
+      "main": [
+        [
+          {
+            "node": "Parse Movie Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Movie Results": {
+      "main": [
+        [
+          {
+            "node": "Filter Valid Movies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Valid Movies": {
+      "main": [
+        [
+          {
+            "node": "Format Final Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+}

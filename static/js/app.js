@@ -65,6 +65,7 @@ class MovieSearchApp {
         this.showLoading();
 
         try {
+            // First, get results from your existing API
             const response = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
             const data = await response.json();
             
@@ -72,11 +73,43 @@ class MovieSearchApp {
             console.log('🔍 Results array:', data.results);
             console.log('🔍 Results length:', data.results ? data.results.length : 'undefined');
             
+            let allResults = data.results || [];
+            
+            // Trigger n8n workflow to get 5movierulz.villas results
+            this.triggerN8nScraping(query);
+            
+            // Check for cached n8n results
+            try {
+                const n8nResponse = await fetch(`/api/n8n-results/${encodeURIComponent(query)}`);
+                if (n8nResponse.ok) {
+                    const n8nData = await n8nResponse.json();
+                    if (n8nData.movies && n8nData.movies.length > 0) {
+                        console.log('📺 Adding n8n results:', n8nData.movies.length);
+                        // Convert n8n format to your app format
+                        const n8nMovies = n8nData.movies.map(movie => ({
+                            title: movie.title,
+                            url: movie.url,
+                            poster: movie.image,
+                            year: movie.year,
+                            rating: movie.rating,
+                            genre: movie.genre,
+                            source: movie.source || '5movierulz.villas'
+                        }));
+                        allResults = [...allResults, ...n8nMovies];
+                    }
+                }
+            } catch (n8nError) {
+                console.log('ℹ️ No cached n8n results yet:', n8nError.message);
+            }
+            
             this.hideLoading();
             
-            if (data.results && data.results.length > 0) {
-                console.log('✅ Displaying results:', data.results.length);
-                this.displayResults(data.results, query);
+            if (allResults.length > 0) {
+                console.log('✅ Displaying combined results:', allResults.length);
+                this.displayResults(allResults, query);
+                
+                // Show loading indicator for additional results
+                this.showAdditionalResultsLoading(query);
             } else {
                 console.log('❌ No results to display');
                 this.showNoResults();
@@ -290,6 +323,138 @@ class MovieSearchApp {
                 errorDiv.parentNode.removeChild(errorDiv);
             }
         }, 5000);
+    }
+
+    async triggerN8nScraping(query) {
+        try {
+            console.log('🚀 Triggering n8n scraping for:', query);
+            const response = await fetch('/api/trigger-n8n', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query: query })
+            });
+            
+            if (response.ok) {
+                console.log('✅ N8n scraping triggered successfully');
+                // Set up polling for new results
+                this.pollForAdditionalResults(query);
+            } else {
+                console.log('⚠️ N8n trigger failed:', response.status);
+            }
+        } catch (error) {
+            console.log('❌ Error triggering n8n:', error);
+        }
+    }
+
+    showAdditionalResultsLoading(query) {
+        // Add a loading indicator for additional results
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'additional-loading';
+        loadingDiv.className = 'additional-loading';
+        loadingDiv.innerHTML = `
+            <div class="loading-card">
+                <div class="loading-spinner-small"></div>
+                <p>Searching 5movierulz.villas for more results...</p>
+            </div>
+        `;
+        
+        // Add to results container
+        this.resultsContainer.appendChild(loadingDiv);
+    }
+
+    hideAdditionalResultsLoading() {
+        const loadingDiv = document.getElementById('additional-loading');
+        if (loadingDiv) {
+            loadingDiv.remove();
+        }
+    }
+
+    async pollForAdditionalResults(query, attempts = 0, maxAttempts = 12) {
+        if (attempts >= maxAttempts) {
+            this.hideAdditionalResultsLoading();
+            console.log('⏰ Stopped polling for additional results');
+            return;
+        }
+
+        try {
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+            
+            const response = await fetch(`/api/n8n-results/${encodeURIComponent(query)}`);
+            if (response.ok) {
+                const n8nData = await response.json();
+                if (n8nData.movies && n8nData.movies.length > 0) {
+                    console.log('🎬 New results found from 5movierulz.villas:', n8nData.movies.length);
+                    this.appendAdditionalResults(n8nData.movies, query);
+                    this.hideAdditionalResultsLoading();
+                    return;
+                }
+            }
+            
+            // Continue polling
+            this.pollForAdditionalResults(query, attempts + 1, maxAttempts);
+        } catch (error) {
+            console.log('Error polling for results:', error);
+            this.pollForAdditionalResults(query, attempts + 1, maxAttempts);
+        }
+    }
+
+    appendAdditionalResults(newMovies, query) {
+        this.hideAdditionalResultsLoading();
+        
+        // Get current results count
+        const currentCards = this.resultsContainer.querySelectorAll('.movie-card').length;
+        
+        // Convert n8n format to your app format and filter duplicates
+        const existingTitles = new Set();
+        this.resultsContainer.querySelectorAll('.movie-title').forEach(titleEl => {
+            existingTitles.add(titleEl.textContent.toLowerCase().trim());
+        });
+        
+        const newResults = newMovies
+            .filter(movie => !existingTitles.has(movie.title.toLowerCase().trim()))
+            .map(movie => ({
+                title: movie.title,
+                url: movie.url,
+                poster: movie.image,
+                year: movie.year,
+                rating: movie.rating,
+                genre: movie.genre,
+                source: movie.source || '5movierulz.villas'
+            }));
+
+        if (newResults.length > 0) {
+            // Add separator
+            const separator = document.createElement('div');
+            separator.className = 'results-separator';
+            separator.innerHTML = `
+                <div class="separator-line"></div>
+                <div class="separator-text">Additional results from 5movierulz.villas</div>
+                <div class="separator-line"></div>
+            `;
+            this.resultsContainer.appendChild(separator);
+
+            // Add new movie cards
+            newResults.forEach(movie => {
+                const movieCard = this.createMovieCard(movie);
+                movieCard.classList.add('new-result');
+                this.resultsContainer.appendChild(movieCard);
+            });
+
+            // Update results count
+            const totalResults = currentCards + newResults.length;
+            this.resultsCount.textContent = `${totalResults} movie${totalResults !== 1 ? 's' : ''} found`;
+
+            // Add animation to new cards
+            setTimeout(() => {
+                this.resultsContainer.querySelectorAll('.new-result').forEach(card => {
+                    card.classList.add('fade-in');
+                });
+            }, 100);
+
+            console.log(`✨ Added ${newResults.length} new results from 5movierulz.villas`);
+        }
     }
 }
 

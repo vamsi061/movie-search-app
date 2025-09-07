@@ -535,3 +535,76 @@ body {
         padding: 1rem;
     }
 }
+
+/* Additional Results Loading Styles */
+.additional-loading {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    margin: 1rem 0;
+}
+
+.loading-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 15px;
+    padding: 2rem;
+    text-align: center;
+    color: white;
+    min-width: 300px;
+}
+
+.loading-spinner-small {
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem auto;
+}
+
+.results-separator {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    margin: 2rem 0;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.separator-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+
+.separator-text {
+    padding: 0 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 0.5rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.new-result {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s ease;
+}
+
+.new-result.fade-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Enhanced movie card for 5movierulz source */
+.movie-card[data-source="5movierulz.villas"] {
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.1);
+}

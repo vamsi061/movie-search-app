@@ -1,0 +1,247 @@
+{
+  "name": "5MovieRulz Villas Advanced Scraper",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "movie-scraper-villas",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 300],
+      "webhookId": "movie-scraper-villas"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and validate search query\nconst webhookData = $input.first().json;\nlet query = 'rrr'; // default fallback\n\n// Try multiple ways to extract query\nif (webhookData.query && webhookData.query.query) {\n  query = webhookData.query.query;\n} else if (webhookData.body && webhookData.body.query) {\n  query = webhookData.body.query;\n} else if (webhookData.query && typeof webhookData.query === 'string') {\n  query = webhookData.query;\n} else if (webhookData.searchQuery) {\n  query = webhookData.searchQuery;\n}\n\n// Clean and validate query\nquery = String(query).trim();\nif (!query || query === 'undefined' || query === 'null') {\n  query = 'rrr';\n}\n\n// Construct target URL for 5movierulz.villas\nconst targetUrl = `https://www.5movierulz.villas/search_movies?s=${encodeURIComponent(query)}`;\n\nconsole.log('Search query:', query);\nconsole.log('Target URL:', targetUrl);\n\nreturn {\n  searchQuery: query,\n  targetUrl: targetUrl,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "prepare-search",
+      "name": "Prepare Search Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.targetUrl }}",
+        "waitForSelector": ".ml-item",
+        "waitTime": 8000,
+        "headless": true,
+        "stealth": true,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "timeout": 60000,
+        "outputType": "html",
+        "extraHTTPHeaders": {
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.5",
+          "Accept-Encoding": "gzip, deflate, br",
+          "DNT": "1",
+          "Connection": "keep-alive",
+          "Upgrade-Insecure-Requests": "1",
+          "Sec-Fetch-Dest": "document",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-Site": "none",
+          "Cache-Control": "max-age=0"
+        },
+        "actions": [
+          {
+            "type": "wait",
+            "value": 3000
+          },
+          {
+            "type": "evaluate",
+            "value": "() => { window.scrollTo(0, document.body.scrollHeight/2); }"
+          },
+          {
+            "type": "wait",
+            "value": 2000
+          }
+        ]
+      },
+      "id": "playwright-scrape",
+      "name": "Playwright Advanced Scrape",
+      "type": "n8n-nodes-playwright.playwright",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse movie results from 5movierulz.villas HTML\nconst playwrightData = $input.first().json;\nconst searchQuery = $('Prepare Search Data').first().json.searchQuery;\n\nlet htmlContent = '';\nif (playwrightData.html) {\n  htmlContent = playwrightData.html;\n} else if (playwrightData.content) {\n  htmlContent = playwrightData.content;\n} else if (typeof playwrightData === 'string') {\n  htmlContent = playwrightData;\n}\n\nconsole.log('HTML content length:', htmlContent.length);\nconsole.log('Search query for parsing:', searchQuery);\n\nconst movies = [];\n\n// Check if we got blocked or redirected\nif (htmlContent.includes('Access Denied') || \n    htmlContent.includes('Cloudflare') || \n    htmlContent.includes('Just a moment') ||\n    htmlContent.length < 1000) {\n  console.log('Possible blocking detected');\n  return {\n    error: 'Site may be blocking requests',\n    htmlLength: htmlContent.length,\n    searchQuery: searchQuery\n  };\n}\n\n// Parse using regex patterns for 5movierulz.villas structure\nconst movieItemRegex = /<div[^>]*class=\"[^\"]*ml-item[^\"]*\"[^>]*>([\\s\\S]*?)<\\/div>/gi;\nconst titleRegex = /<h2[^>]*>\\s*<a[^>]*>([^<]+)<\\/a>\\s*<\\/h2>/i;\nconst linkRegex = /<a[^>]*href=\"([^\"]+)\"[^>]*>/i;\nconst imageRegex = /<img[^>]*src=\"([^\"]+)\"[^>]*>/i;\nconst yearRegex = /<span[^>]*class=\"[^\"]*year[^\"]*\"[^>]*>([^<]+)<\\/span>/i;\nconst ratingRegex = /<span[^>]*class=\"[^\"]*rating[^\"]*\"[^>]*>([^<]+)<\\/span>/i;\nconst genreRegex = /<span[^>]*class=\"[^\"]*genre[^\"]*\"[^>]*>([^<]+)<\\/span>/i;\n\nlet match;\nwhile ((match = movieItemRegex.exec(htmlContent)) !== null) {\n  const itemHtml = match[1];\n  \n  const titleMatch = titleRegex.exec(itemHtml);\n  const linkMatch = linkRegex.exec(itemHtml);\n  const imageMatch = imageRegex.exec(itemHtml);\n  const yearMatch = yearRegex.exec(itemHtml);\n  const ratingMatch = ratingRegex.exec(itemHtml);\n  const genreMatch = genreRegex.exec(itemHtml);\n  \n  if (titleMatch && linkMatch) {\n    const title = titleMatch[1].trim();\n    let url = linkMatch[1].trim();\n    \n    // Ensure absolute URL\n    if (url.startsWith('/')) {\n      url = 'https://www.5movierulz.villas' + url;\n    }\n    \n    let image = imageMatch ? imageMatch[1].trim() : '';\n    if (image && image.startsWith('/')) {\n      image = 'https://www.5movierulz.villas' + image;\n    }\n    \n    const movie = {\n      title: title,\n      url: url,\n      image: image || 'https://via.placeholder.com/300x450?text=No+Image',\n      year: yearMatch ? yearMatch[1].trim() : 'Unknown',\n      rating: ratingMatch ? ratingMatch[1].trim() : 'N/A',\n      genre: genreMatch ? genreMatch[1].trim() : 'Unknown',\n      source: '5movierulz.villas',\n      searchQuery: searchQuery,\n      scrapedAt: new Date().toISOString()\n    };\n    \n    movies.push(movie);\n  }\n}\n\n// Alternative parsing if main method fails\nif (movies.length === 0) {\n  console.log('Trying alternative parsing methods...');\n  \n  // Try parsing with different selectors\n  const altRegex = /<article[^>]*class=\"[^\"]*item[^\"]*\"[^>]*>([\\s\\S]*?)<\\/article>/gi;\n  let altMatch;\n  \n  while ((altMatch = altRegex.exec(htmlContent)) !== null) {\n    const itemHtml = altMatch[1];\n    \n    const titleMatch = /<h[1-6][^>]*>\\s*<a[^>]*>([^<]+)<\\/a>\\s*<\\/h[1-6]>/i.exec(itemHtml);\n    const linkMatch = /<a[^>]*href=\"([^\"]+)\"[^>]*>/i.exec(itemHtml);\n    \n    if (titleMatch && linkMatch) {\n      const title = titleMatch[1].trim();\n      let url = linkMatch[1].trim();\n      \n      if (url.startsWith('/')) {\n        url = 'https://www.5movierulz.villas' + url;\n      }\n      \n      movies.push({\n        title: title,\n        url: url,\n        image: 'https://via.placeholder.com/300x450?text=Movie',\n        year: 'Unknown',\n        rating: 'N/A',\n        genre: 'Unknown',\n        source: '5movierulz.villas',\n        searchQuery: searchQuery,\n        scrapedAt: new Date().toISOString()\n      });\n    }\n  }\n}\n\nconsole.log(`Found ${movies.length} movies for query: ${searchQuery}`);\n\n// Return each movie as separate item for n8n processing\nreturn movies;"
+      },
+      "id": "parse-movies",
+      "name": "Parse Movie Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.title }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "2",
+              "leftValue": "={{ $json.url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        }
+      },
+      "id": "filter-valid",
+      "name": "Filter Valid Movies",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all movies and format final response\nconst movies = $input.all();\nconst searchQuery = movies[0]?.json?.searchQuery || 'rrr';\n\n// Remove duplicates based on title\nconst uniqueMovies = [];\nconst seenTitles = new Set();\n\nfor (const movie of movies) {\n  const title = movie.json.title.toLowerCase().trim();\n  if (!seenTitles.has(title)) {\n    seenTitles.add(title);\n    uniqueMovies.push(movie.json);\n  }\n}\n\n// Sort by relevance (title similarity to search query)\nconst sortedMovies = uniqueMovies.sort((a, b) => {\n  const aRelevance = a.title.toLowerCase().includes(searchQuery.toLowerCase()) ? 1 : 0;\n  const bRelevance = b.title.toLowerCase().includes(searchQuery.toLowerCase()) ? 1 : 0;\n  return bRelevance - aRelevance;\n});\n\nconst finalResult = {\n  searchQuery: searchQuery,\n  totalResults: sortedMovies.length,\n  source: '5movierulz.villas',\n  scrapedAt: new Date().toISOString(),\n  scrapeMethod: 'playwright-advanced',\n  status: 'success',\n  movies: sortedMovies\n};\n\nconsole.log(`Final result: ${sortedMovies.length} unique movies for \"${searchQuery}\"`);\n\nreturn finalResult;"
+      },
+      "id": "format-results",
+      "name": "Format Final Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://your-app-domain.com/api/append-results",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "headers": {
+            "Content-Type": "application/json",
+            "User-Agent": "n8n-movie-scraper/1.0"
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "send-to-app",
+      "name": "Send to Your App",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return success response for webhook\nconst inputData = $input.first().json;\n\nreturn {\n  success: true,\n  message: 'Movie scraping completed successfully',\n  searchQuery: inputData.searchQuery || 'unknown',\n  totalResults: inputData.totalResults || 0,\n  timestamp: new Date().toISOString(),\n  webhookResponse: {\n    status: 'completed',\n    data: inputData\n  }\n};"
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Search Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Search Data": {
+      "main": [
+        [
+          {
+            "node": "Playwright Advanced Scrape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Playwright Advanced Scrape": {
+      "main": [
+        [
+          {
+            "node": "Parse Movie Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Movie Results": {
+      "main": [
+        [
+          {
+            "node": "Filter Valid Movies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Valid Movies": {
+      "main": [
+        [
+          {
+            "node": "Format Final Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Final Results": {
+      "main": [
+        [
+          {
+            "node": "Send to Your App",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Your App": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["movie-scraper", "5movierulz", "playwright"],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "2"
+}
