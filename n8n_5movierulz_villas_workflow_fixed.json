@@ -29,50 +29,59 @@
     {
       "parameters": {
         "url": "={{ $json.targetUrl }}",
-        "waitForSelector": ".ml-item, .item, .movie-item, article",
-        "waitTime": 5000,
-        "headless": true,
-        "stealth": true,
-        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "viewport": {
-          "width": 1920,
-          "height": 1080
+        "options": {
+          "waitForSelector": ".ml-item, .item, .movie-item, article, .post",
+          "waitTime": 8000,
+          "headless": true,
+          "stealth": true,
+          "timeout": 60000
         },
-        "timeout": 60000,
-        "outputType": "html",
-        "extraHTTPHeaders": {
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.5",
-          "Accept-Encoding": "gzip, deflate, br",
-          "DNT": "1",
-          "Connection": "keep-alive",
-          "Upgrade-Insecure-Requests": "1",
-          "Sec-Fetch-Dest": "document",
-          "Sec-Fetch-Mode": "navigate",
-          "Sec-Fetch-Site": "none"
+        "browserOptions": {
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "extraHTTPHeaders": {
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate, br",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1"
+          }
         },
         "actions": [
           {
-            "type": "wait",
-            "value": 3000
+            "action": "wait",
+            "parameters": {
+              "time": 3000
+            }
           },
           {
-            "type": "evaluate",
-            "value": "() => { window.scrollTo(0, document.body.scrollHeight/2); }"
+            "action": "evaluate",
+            "parameters": {
+              "script": "() => { window.scrollTo(0, document.body.scrollHeight/2); return 'scrolled'; }"
+            }
           },
           {
-            "type": "wait",
-            "value": 2000
+            "action": "wait",
+            "parameters": {
+              "time": 2000
+            }
           },
           {
-            "type": "evaluate",
-            "value": "() => { console.log('Page loaded, found elements:', document.querySelectorAll('a').length); }"
+            "action": "evaluate",
+            "parameters": {
+              "script": "() => { const links = document.querySelectorAll('a'); console.log('Found links:', links.length); return links.length; }"
+            }
           }
-        ]
+        ],
+        "output": "html"
       },
       "id": "playwright-scrape",
       "name": "Playwright Scrape",
-      "type": "n8n-nodes-base.playwright",
+      "type": "n8n-nodes-playwright.playwright",
       "typeVersion": 1,
       "position": [500, 300]
     },
