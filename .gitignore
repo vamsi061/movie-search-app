@@ -66,5 +66,7 @@ playwright-report/
 playwright/.cache/
 
 # Movie search specific
-*.html
 page_content.html
+# Keep templates directory
+!templates/
+!templates/*.html
