@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Streaming Links</title>
+</head>
+<body>
+    <h1>Test Streaming Link Extraction</h1>
+    <button onclick="testSearch()">Test Search for "lokah"</button>
+    <div id="results"></div>
+
+    <script>
+        async function testSearch() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Searching...</p>';
+            
+            try {
+                const response = await fetch('/api/search?query=lokah');
+                const data = await response.json();
+                
+                console.log('Full API Response:', data);
+                
+                let html = '<h2>Search Results:</h2>';
+                html += `<p>Message: ${data.message}</p>`;
+                html += `<p>Total: ${data.total}</p>`;
+                
+                if (data.results && data.results.length > 0) {
+                    data.results.forEach((movie, index) => {
+                        html += `<div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">`;
+                        html += `<h3>${movie.title}</h3>`;
+                        html += `<p><strong>Main URL:</strong> ${movie.url}</p>`;
+                        html += `<p><strong>Movie Page:</strong> ${movie.movie_page}</p>`;
+                        
+                        if (movie.streamingUrls && movie.streamingUrls.length > 0) {
+                            html += `<h4>Streaming Links (${movie.streamingUrls.length}):</h4>`;
+                            html += '<ul>';
+                            movie.streamingUrls.forEach(stream => {
+                                html += `<li><strong>${stream.service}</strong> (${stream.quality}) - <a href="${stream.url}" target="_blank">${stream.url}</a></li>`;
+                            });
+                            html += '</ul>';
+                        } else {
+                            html += '<p>No streaming URLs found</p>';
+                        }
+                        html += '</div>';
+                    });
+                } else {
+                    html += '<p>No results found</p>';
+                }
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultsDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
